@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
+import { callAdminProxy } from '../utils/shopifyAdmin';
 import StatCard from '../components/ui/StatCard';
 import Tabs from '../components/ui/Tabs';
 import Button from '../components/ui/Button';
@@ -43,15 +44,54 @@ export default function TemplatesPage() {
 
   async function handleConfirmUpload() {
     setUploadLoading(true);
-    await new Promise(r => setTimeout(r, 1200));
-    const newId = 'gid://shopify/Metaobject/' + Date.now();
-    if (uploadItem.type === 'template') {
-      updateTemplate(uploadItem.id, { status: 'uploaded', metaobjectId: newId });
-    } else {
-      updateCanvas(uploadItem.id, { status: 'uploaded', metaobjectId: newId });
+    try {
+      const item = uploadItem.type === 'template'
+        ? templates.find(t => t.id === uploadItem.id)
+        : canvases.find(c => c.id === uploadItem.id);
+
+      if (uploadItem.type === 'template') {
+        const fields = {
+          name: item.name,
+          category: item.category || '',
+          canvas_width: String(item.canvasWidth),
+          canvas_height: String(item.canvasHeight),
+          background_color: item.backgroundColor || '#ffffff',
+          template_json: JSON.stringify(item.templateJSON),
+          preview_image_url: item.previewImageUrl || '',
+          variants_json: JSON.stringify(item.variants || []),
+          created_at: item.createdAt || new Date().toISOString(),
+        };
+        let result;
+        if (item.metaobjectId) {
+          result = await callAdminProxy('updateMetaobject', { id: item.metaobjectId, fields });
+        } else {
+          result = await callAdminProxy('createMetaobject', { type: 'design_template', fields });
+        }
+        updateTemplate(item.id, { status: 'uploaded', metaobjectId: result.id });
+      }
+
+      if (uploadItem.type === 'canvas') {
+        const fields = {
+          name: item.name,
+          category: item.category || '',
+          variants_json: JSON.stringify(item.variants || []),
+          created_at: item.createdAt || new Date().toISOString(),
+        };
+        let result;
+        if (item.metaobjectId) {
+          result = await callAdminProxy('updateMetaobject', { id: item.metaobjectId, fields });
+        } else {
+          result = await callAdminProxy('createMetaobject', { type: 'canvas_config', fields });
+        }
+        updateCanvas(item.id, { status: 'uploaded', metaobjectId: result.id });
+      }
+    } catch (err) {
+      console.error('Upload failed:', err);
+      alert('Upload failed: ' + err.message);
+    } finally {
+      setUploadLoading(false);
+      setUploadItem(null);
     }
-    setUploadLoading(false);
-    setUploadItem(null);
   }
 
   return (

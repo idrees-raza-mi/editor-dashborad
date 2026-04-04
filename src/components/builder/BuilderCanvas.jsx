@@ -19,6 +19,8 @@ export default function BuilderCanvas({
   onClearAll,
   onCanvasReady,
   onVariantChange,
+  onUndo,
+  onRedo,
 }) {
   const canvasElRef = useRef(null);
   const canvasInstanceRef = useRef(null);
@@ -243,10 +245,22 @@ export default function BuilderCanvas({
           {effectiveWidth} × {effectiveHeight} px
         </span>
         <div className="canvas-toolbar-actions">
-          <Button variant="ghost" icon={ZoomIn} size="sm" />
-          <Button variant="ghost" icon={ZoomOut} size="sm" />
-          <Button variant="ghost" icon={RotateCcw} size="sm">Undo</Button>
-          <Button variant="ghost" icon={RotateCw} size="sm">Redo</Button>
+          <Button variant="ghost" icon={ZoomIn} size="sm" onClick={() => {
+            const fc = canvasInstanceRef?.current;
+            if (!fc) return;
+            const zoom = Math.min(fc.getZoom() * 1.15, 5);
+            fc.setZoom(zoom);
+            fc.renderAll();
+          }} />
+          <Button variant="ghost" icon={ZoomOut} size="sm" onClick={() => {
+            const fc = canvasInstanceRef?.current;
+            if (!fc) return;
+            const zoom = Math.max(fc.getZoom() * 0.87, 0.2);
+            fc.setZoom(zoom);
+            fc.renderAll();
+          }} />
+          <Button variant="ghost" icon={RotateCcw} size="sm" onClick={onUndo}>Undo</Button>
+          <Button variant="ghost" icon={RotateCw}  size="sm" onClick={onRedo}>Redo</Button>
           <Button variant="ghost" icon={Trash2} size="sm" onClick={handleClearAll}>Clear All</Button>
         </div>
       </div>

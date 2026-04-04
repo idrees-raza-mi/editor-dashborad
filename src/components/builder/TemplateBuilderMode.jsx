@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import LayersPanel from './LayersPanel';
 import BuilderCanvas from './BuilderCanvas';
 import PermissionsPanel from './PermissionsPanel';
@@ -73,6 +73,7 @@ export default function TemplateBuilderMode({
   selectedElementId,
   setSelectedElementId,
   canvasConfig,
+  onCanvasConfigChange,
   variants,
   setVariants,
   activeVariantId,
@@ -83,10 +84,13 @@ export default function TemplateBuilderMode({
   setTemplateCategory,
   componentSettings,
   onComponentSettingsChange,
+  onCanvasReady,
 }) {
-  const canvasRef         = useRef(null);
-  const imageInputRef     = useRef(null);
+  const canvasRef           = useRef(null);
+  const imageInputRef       = useRef(null);
   const pendingImageElement = useRef(null);
+  const prevVariantIdRef    = useRef(activeVariantId);
+  const canvasConfigInitRef = useRef(true);
 
   // ── Undo / Redo history ─────────────────────────────────────────
   const historyRef    = useRef([[]]);
@@ -101,15 +105,19 @@ export default function TemplateBuilderMode({
   function undo() {
     if (historyIdxRef.current <= 0) return;
     historyIdxRef.current--;
-    setElements(JSON.parse(JSON.stringify(historyRef.current[historyIdxRef.current])));
+    const prev = JSON.parse(JSON.stringify(historyRef.current[historyIdxRef.current]));
+    setElements(prev);
     setSelectedElementId(null);
+    setTimeout(() => syncPermissionsToCanvas(prev), 50);
   }
 
   function redo() {
     if (historyIdxRef.current >= historyRef.current.length - 1) return;
     historyIdxRef.current++;
-    setElements(JSON.parse(JSON.stringify(historyRef.current[historyIdxRef.current])));
+    const prev = JSON.parse(JSON.stringify(historyRef.current[historyIdxRef.current]));
+    setElements(prev);
     setSelectedElementId(null);
+    setTimeout(() => syncPermissionsToCanvas(prev), 50);
   }
 
   const selectedElement = elements.find(e => e.id === selectedElementId) || null;
@@ -277,6 +285,42 @@ export default function TemplateBuilderMode({
     });
   }
 
+  // ── B7: Resize background rect when canvasConfig changes ──────────
+  useEffect(() => {
+    if (canvasConfigInitRef.current) { canvasConfigInitRef.current = false; return; }
+    setElements(prev => prev.map(el => {
+      if (el.type === 'background') {
+        return { ...el, width: canvasConfig.width, height: canvasConfig.height, left: 0, top: 0 };
+      }
+      return el;
+    }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canvasConfig.width, canvasConfig.height]);
+
+  // ── Variant switch: scale element positions proportionally ────────
+  useEffect(() => {
+    const prevId = prevVariantIdRef.current;
+    if (prevId === activeVariantId) return;
+    const prevVariant = variants.find(v => v.id === prevId);
+    const newVariant  = variants.find(v => v.id === activeVariantId);
+    prevVariantIdRef.current = activeVariantId;
+    if (!prevVariant || !newVariant) return;
+    const sx = prevVariant.canvasWidth  > 0 ? newVariant.canvasWidth  / prevVariant.canvasWidth  : 1;
+    const sy = prevVariant.canvasHeight > 0 ? newVariant.canvasHeight / prevVariant.canvasHeight : 1;
+    setElements(prev => prev.map(el => ({
+      ...el,
+      left:     el.left  * sx,
+      top:      el.top   * sy,
+      width:    el.width  ? el.width  * sx : el.width,
+      height:   el.height ? el.height * sy : el.height,
+      fontSize: el.fontSize ? Math.round(el.fontSize * Math.min(sx, sy)) : el.fontSize,
+    })));
+    if (onCanvasConfigChange) {
+      onCanvasConfigChange(prev => ({ ...prev, width: newVariant.canvasWidth, height: newVariant.canvasHeight }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeVariantId]);
+
   return (
     <div>
       {/* Canvas config header row */}
@@ -318,8 +362,10 @@ export default function TemplateBuilderMode({
           onElementTextChanged={handleElementTextChanged}
           onDeleteElement={handleDeleteElement}
           onClearAll={handleClearAll}
-          onCanvasReady={fc => { canvasRef.current = fc; }}
+          onCanvasReady={fc => { canvasRef.current = fc; if (onCanvasReady) onCanvasReady(fc); }}
           onVariantChange={setActiveVariantId}
+          onUndo={undo}
+          onRedo={redo}
         />
         <PermissionsPanel
           element={selectedElement}

@@ -1,12 +1,91 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Lock, Move, Maximize, RotateCw, Type, ALargeSmall, Palette, Bold, Italic, ImageIcon, Trash2, Wand2 } from 'lucide-react';
 import { removeBackground } from '../../utils/removeBackground';
 
-const FONTS = [
-  'Playfair Display', 'Jost', 'Lora', 'Merriweather', 'Montserrat',
-  'Open Sans', 'Raleway', 'Dancing Script', 'Great Vibes', 'Roboto',
-  'Poppins', 'Cormorant Garamond', 'EB Garamond', 'Libre Baskerville', 'Source Sans 3',
+const FONT_LIST = [
+  // Google Fonts
+  { label: 'Playfair Display',          value: 'Playfair Display',          source: 'google' },
+  { label: 'Great Vibes',               value: 'Great Vibes',               source: 'google' },
+  { label: 'Montserrat',                value: 'Montserrat',                source: 'google' },
+  { label: 'Bebas Neue',                value: 'Bebas Neue',                source: 'google' },
+  { label: 'Pacifico',                  value: 'Pacifico',                  source: 'google' },
+  { label: 'Dancing Script',            value: 'Dancing Script',            source: 'google' },
+  { label: 'Oswald',                    value: 'Oswald',                    source: 'google' },
+  { label: 'Lobster',                   value: 'Lobster',                   source: 'google' },
+  { label: 'Raleway',                   value: 'Raleway',                   source: 'google' },
+  { label: 'Cinzel',                    value: 'Cinzel',                    source: 'google' },
+  { label: 'Sacramento',                value: 'Sacramento',                source: 'google' },
+  { label: 'Abril Fatface',             value: 'Abril Fatface',             source: 'google' },
+  { label: 'Josefin Sans',              value: 'Josefin Sans',              source: 'google' },
+  { label: 'Satisfy',                   value: 'Satisfy',                   source: 'google' },
+  { label: 'Righteous',                 value: 'Righteous',                 source: 'google' },
+  { label: 'Ranchers',                  value: 'Ranchers',                  source: 'google' },
+  { label: 'Creepster',                 value: 'Creepster',                 source: 'google' },
+  { label: 'Archivo Black',             value: 'Archivo Black',             source: 'google' },
+  { label: 'Rammetto One',              value: 'Rammetto One',              source: 'google' },
+  { label: 'Jockey One',                value: 'Jockey One',                source: 'google' },
+  { label: 'Berkshire Swash',           value: 'Berkshire Swash',           source: 'google' },
+  { label: 'Architects Daughter',       value: 'Architects Daughter',       source: 'google' },
+  { label: 'Bodoni Moda',               value: 'Bodoni Moda',               source: 'google' },
+  { label: 'Press Start 2P',            value: 'Press Start 2P',            source: 'google' },
+  { label: 'Aclonica',                  value: 'Aclonica',                  source: 'google' },
+  { label: 'Glacial Indifference',      value: 'Glacial Indifference',      source: 'google' },
+  { label: 'Permanent Marker',          value: 'Permanent Marker',          source: 'google' },
+  { label: 'Titan One',                 value: 'Titan One',                 source: 'google' },
+  { label: 'Lilita One',                value: 'Lilita One',                source: 'google' },
+  { label: 'Baloo 2',                   value: 'Baloo 2',                   source: 'google' },
+  // Self-hosted
+  { label: 'Graphik Web',               value: 'Graphik Web',               source: 'local' },
+  { label: 'Sandrina',                  value: 'Sandrina',                  source: 'local' },
+  { label: 'Aspire Pasque Serif',       value: 'Aspire Pasque Serif',       source: 'local' },
+  { label: 'Aspire Pasque Script',      value: 'Aspire Pasque Script',      source: 'local' },
+  { label: 'Amalfi Coast',              value: 'Amalfi Coast',              source: 'local' },
+  { label: 'Darline Serif',             value: 'Darline Serif',             source: 'local' },
+  { label: 'Darline Script',            value: 'Darline Script',            source: 'local' },
+  { label: 'Buka Bird',                 value: 'Buka Bird',                 source: 'local' },
+  { label: 'Safira March Light',        value: 'Safira March Light',        source: 'local' },
+  { label: 'Broadway',                  value: 'Broadway',                  source: 'local' },
+  { label: 'Wild Dream',                value: 'Wild Dream',                source: 'local' },
+  { label: 'Bhutan',                    value: 'Bhutan',                    source: 'local' },
+  { label: 'Garden Sans',               value: 'Garden Sans',               source: 'local' },
+  { label: 'Gabriel Weiss Friends Font',value: 'Gabriel Weiss Friends Font',source: 'local' },
+  { label: 'Beauty Dina',               value: 'Beauty Dina',               source: 'local' },
+  { label: 'Minecrafter',               value: 'Minecrafter',               source: 'local' },
+  { label: 'Landmark',                  value: 'Landmark',                  source: 'local' },
+  { label: 'Gulya Script',              value: 'Gulya Script',              source: 'local' },
+  { label: 'Evallia',                   value: 'Evallia',                   source: 'local' },
+  { label: 'Funkhouse',                 value: 'Funkhouse',                 source: 'local' },
+  { label: 'Cooper Std Black',          value: 'Cooper Std Black',          source: 'local' },
+  { label: 'Candy Shop',                value: 'Candy Shop',                source: 'local' },
+  { label: 'Brown Sugar',               value: 'Brown Sugar',               source: 'local' },
+  { label: 'Mattosa Script',            value: 'Mattosa Script',            source: 'local' },
+  { label: 'Butter Mellow',             value: 'Butter Mellow',             source: 'local' },
+  { label: 'Babes & Bridal',            value: 'Babes & Bridal',            source: 'local' },
+  { label: 'Arrafah',                   value: 'Arrafah',                   source: 'local' },
+  { label: 'Anggelica Merona',          value: 'Anggelica Merona',          source: 'local' },
+  { label: 'Harry Potter',              value: 'Harry Potter',              source: 'local' },
+  { label: 'GGEyesome Script',          value: 'GGEyesome Script',          source: 'local' },
+  { label: 'Magneto',                   value: 'Magneto',                   source: 'local' },
+  { label: 'Frankfurter',               value: 'Frankfurter',               source: 'local' },
+  { label: 'SB-Bold',                   value: 'SB-Bold',                   source: 'local' },
+  { label: 'Elyn Alina',                value: 'Elyn Alina',                source: 'local' },
+  { label: 'Charlemagne',               value: 'Charlemagne',               source: 'local' },
+  { label: 'GROBOLD',                   value: 'GROBOLD',                   source: 'local' },
+  { label: 'Baleria',                   value: 'Baleria',                   source: 'local' },
+  { label: 'Behavior Indihome Regular', value: 'Behavior Indihome Regular', source: 'local' },
+  { label: 'Baropetha Signature',       value: 'Baropetha Signature',       source: 'local' },
+  { label: 'Amsterdam',                 value: 'Amsterdam',                 source: 'local' },
+  { label: 'Retro Signature',           value: 'Retro Signature',           source: 'local' },
+  { label: 'Anything Script',           value: 'Anything Script',           source: 'local' },
+  { label: 'Northwell',                 value: 'Northwell',                 source: 'local' },
+  { label: 'Qanelas Thin',              value: 'Qanelas Thin',              source: 'local' },
+  { label: 'Father Farmhouse Sans',     value: 'Father Farmhouse Sans',     source: 'local' },
+  { label: 'Father Farmhouse Script',   value: 'Father Farmhouse Script',   source: 'local' },
+  { label: 'Wrexham',                   value: 'Wrexham',                   source: 'local' },
+  { label: '5Aughles ia',               value: '5Aughles ia',               source: 'local' },
 ];
+
+const LOCAL_FONT_VALUES = FONT_LIST.filter(f => f.source === 'local').map(f => f.value);
 
 function PillToggle({ options, value, onChange }) {
   return (
@@ -74,8 +153,20 @@ function updatePerm(element, key, value, onChange) {
 }
 
 export default function PermissionsPanel({ element, onChange, onReplaceImage, canvasRef }) {
-  const [removingBg, setRemovingBg] = useState(false);
+  const [removingBg, setRemovingBg]       = useState(false);
   const [removeBgError, setRemoveBgError] = useState(null);
+  const [missingFonts, setMissingFonts]   = useState(new Set());
+
+  useEffect(() => {
+    if (typeof document === 'undefined' || !document.fonts) return;
+    document.fonts.ready.then(() => {
+      const missing = new Set();
+      LOCAL_FONT_VALUES.forEach(fontName => {
+        if (!document.fonts.check(`16px "${fontName}"`)) missing.add(fontName);
+      });
+      setMissingFonts(missing);
+    });
+  }, []);
 
   function handleRemoveBackground() {
     if (!canvasRef?.current) return;
@@ -161,8 +252,17 @@ export default function PermissionsPanel({ element, onChange, onReplaceImage, ca
               <select
                 value={element.fontFamily || 'Playfair Display'}
                 onChange={e => onChange({ ...element, fontFamily: e.target.value })}
+                style={{ fontFamily: element.fontFamily || 'Playfair Display' }}
               >
-                {FONTS.map(f => <option key={f} value={f}>{f}</option>)}
+                {FONT_LIST.map(f => (
+                  <option
+                    key={f.value}
+                    value={f.value}
+                    style={{ fontFamily: f.value }}
+                  >
+                    {f.label}{f.source === 'local' && missingFonts.has(f.value) ? ' (File missing)' : ''}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="style-row" style={{ marginBottom: 10 }}>

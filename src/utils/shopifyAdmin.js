@@ -6,7 +6,10 @@ const getBase = () =>
 export async function callAdminProxy(action, data) {
   const res = await fetch(getBase() + '/api/shopify', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-admin-secret': import.meta.env.VITE_ADMIN_SECRET || '',
+    },
     body: JSON.stringify({ action, data }),
   });
   const json = await res.json();

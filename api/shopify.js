@@ -1,7 +1,7 @@
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-admin-secret');
 
   if (req.method === 'OPTIONS') {
     res.status(200).end();
@@ -9,6 +9,13 @@ export default async function handler(req, res) {
   }
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Authenticate request using shared secret
+  const adminSecret   = process.env.ADMIN_API_SECRET;
+  const requestSecret = req.headers['x-admin-secret'];
+  if (adminSecret && requestSecret !== adminSecret) {
+    return res.status(401).json({ error: 'Unauthorized' });
   }
 
   const { action, data } = req.body;
@@ -102,6 +109,22 @@ export default async function handler(req, res) {
           metaobject: { fields },
         });
         return res.json(result.metaobjectUpdate.metaobject);
+      }
+
+      case 'listMetaobjects': {
+        const query = `
+          query ListMetaobjects($type: String!, $first: Int!) {
+            metaobjects(type: $type, first: $first) {
+              nodes {
+                id
+                type
+                fields { key value }
+              }
+            }
+          }
+        `;
+        const result = await shopifyRequest(query, { type: data.type, first: data.first || 50 });
+        return res.json(result.metaobjects);
       }
 
       default:

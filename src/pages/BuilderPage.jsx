@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, Upload, ChevronRight, LayoutTemplate, Layers, PenTool } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
@@ -9,7 +9,7 @@ import CanvasConfigMode from '../components/builder/CanvasConfigMode';
 import ExportProgressModal from '../components/modals/ExportProgressModal';
 import ExportPreviewModal from '../components/modals/ExportPreviewModal';
 import { buildTemplateJSON, buildTemplateMetaobjectFields, buildCanvasMetaobjectFields } from '../utils/exportTemplate';
-import { callAdminProxy } from '../utils/shopifyAdmin';
+import { callAdminProxy, uploadImageToShopify } from '../utils/shopifyAdmin';
 
 const MODE_TABS = [
   { id: 'template', label: 'Premade Template' },
@@ -315,7 +315,7 @@ function CanvasSetup({ onComplete }) {
 export default function BuilderPage() {
   const navigate   = useNavigate();
   const [params]   = useSearchParams();
-  const { addCanvas, addTemplate } = useAppContext();
+  const { addCanvas, addTemplate, templates, canvases } = useAppContext();
 
   const [mode, setMode]           = useState(params.get('mode') || 'template');
   const [setupDone, setSetupDone] = useState(false);
@@ -354,6 +354,78 @@ export default function BuilderPage() {
     svgPath: null, backgroundColor: '#ffffff',
   }]);
   const configuratorCanvasRef = useRef(null);
+  const canvasInstanceRef     = useRef(null);
+
+  // ── B2: Load existing template/canvas for editing ─────────────────
+  useEffect(() => {
+    const editId   = params.get('id');
+    const editMode = params.get('mode');
+    if (!editId) return;
+
+    if (editMode === 'template') {
+      const existing = templates.find(t => t.id === editId);
+      if (!existing) return;
+      const tj = existing.templateJSON;
+      if (tj) {
+        setCanvasConfig({
+          width:           tj.canvasWidth  || existing.canvasWidth  || 800,
+          height:          tj.canvasHeight || existing.canvasHeight || 600,
+          backgroundColor: tj.background  || existing.backgroundColor || '#ffffff',
+          name:            existing.name,
+        });
+        if (tj.component_permissions) setComponentSettings(tj.component_permissions);
+        if (tj.objects) {
+          const restored = tj.objects.map(obj => ({
+            id:           obj.id || ('el-' + Date.now() + Math.random()),
+            type:         obj.element_type || 'text',
+            name:         obj.label || obj.element_type || 'Element',
+            left:         obj.left  || 0,
+            top:          obj.top   || 0,
+            width:        obj.width,
+            height:       obj.height,
+            scaleX:       obj.scaleX || 1,
+            scaleY:       obj.scaleY || 1,
+            angle:        obj.angle  || 0,
+            text:         obj.text   || '',
+            fontFamily:   obj.fontFamily || 'Arial',
+            fontSize:     obj.fontSize   || 32,
+            fill:         obj.fill       || '#000000',
+            fontWeight:   obj.fontWeight || 'normal',
+            fontStyle:    obj.fontStyle  || 'normal',
+            src:          obj.src   || null,
+            fabricType:   obj.type  || 'i-text',
+            label:        obj.label || '',
+            required:     obj.required || false,
+            element_type: obj.element_type || 'text',
+            permissions:  obj.permissions || {
+              content: 'fixed', position: 'locked', size: 'locked',
+              rotation: 'locked', delete: 'no',
+              font_family: 'locked', font_size: 'locked', font_color: 'locked',
+            },
+          }));
+          setElements(restored);
+        }
+        setTemplateName(existing.name || '');
+        setTemplateCategory(existing.category || 'Birthday');
+        if (existing.variants?.length > 0) {
+          setVariants(existing.variants);
+          setActiveVariantId(existing.variants[0].id);
+        }
+        setSetupDone(true);
+        setMode('template');
+      }
+    }
+
+    if (editMode === 'canvas') {
+      const existing = canvases.find(c => c.id === editId);
+      if (!existing) return;
+      setCanvasName(existing.name || '');
+      setCanvasCategory(existing.category || 'Shapes');
+      if (existing.variants?.length > 0) setCanvasVariants(existing.variants);
+      setMode('canvas');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Toast
   const [toast, setToast] = useState(null);
@@ -393,20 +465,54 @@ export default function BuilderPage() {
       await sleep(400);
       updateStep('build', 'done');
 
-      // Step 2: Upload preview image (skip in dev)
+      // Step 2: Upload preview image
       updateStep('image', 'active');
       let previewImageUrl = '';
-      if (!isDev) {
-        // Production: actual image upload would go here
-        // For now we skip since canvas capture requires additional work
+      try {
+        const fc = canvasInstanceRef?.current;
+        if (fc) {
+          const dataUrl  = fc.toDataURL({ format: 'png', quality: 0.85 });
+          const response = await fetch(dataUrl);
+          const blob     = await response.blob();
+          const filename = (templateName || 'template').replace(/\s+/g, '-').toLowerCase()
+            + '-preview-' + Date.now() + '.png';
+          if (!isDev) {
+            previewImageUrl = await uploadImageToShopify(blob, filename);
+          } else {
+            await sleep(600);
+          }
+        }
+      } catch (imgErr) {
+        console.warn('Preview image upload failed, continuing without it:', imgErr);
         previewImageUrl = '';
-      } else {
-        await sleep(600);
       }
       updateStep('image', 'done');
 
       // Step 3: Save metaobject
       updateStep('save', 'active');
+
+      // Build per-variant templateJSON snapshots (scaled from active variant dimensions)
+      const activeVariantObj = variants.find(v => v.id === activeVariantId) || variants[0];
+      const baseW = activeVariantObj?.canvasWidth  || canvasConfig.width;
+      const baseH = activeVariantObj?.canvasHeight || canvasConfig.height;
+      const variantsWithJSON = variants.map(v => {
+        if (v.id === (activeVariantObj?.id)) {
+          return { ...v, templateJSON };
+        }
+        const sx = baseW > 0 ? v.canvasWidth  / baseW : 1;
+        const sy = baseH > 0 ? v.canvasHeight / baseH : 1;
+        const scaledEls = elements.map(el => ({
+          ...el,
+          left:     el.left  * sx,
+          top:      el.top   * sy,
+          width:    el.width  ? el.width  * sx : el.width,
+          height:   el.height ? el.height * sy : el.height,
+          fontSize: el.fontSize ? Math.round(el.fontSize * Math.min(sx, sy)) : el.fontSize,
+        }));
+        const variantConfig = { ...canvasConfig, width: v.canvasWidth, height: v.canvasHeight };
+        return { ...v, templateJSON: buildTemplateJSON(scaledEls, variantConfig, componentSettings) };
+      });
+
       const fields = buildTemplateMetaobjectFields(
         {
           name: templateName,
@@ -416,7 +522,7 @@ export default function BuilderPage() {
           backgroundColor: canvasConfig.backgroundColor,
           templateJSON,
         },
-        variants,
+        variantsWithJSON,
         previewImageUrl
       );
 
@@ -436,8 +542,9 @@ export default function BuilderPage() {
           editableFields: elements.filter(e => e.permissions?.content !== 'fixed').length,
           status: 'uploaded',
           metaobjectId: metaobject.id,
-          variants,
+          variants: variantsWithJSON,
           templateJSON,
+          previewImageUrl,
           createdAt: new Date().toISOString().split('T')[0],
         });
       } else {
@@ -453,8 +560,9 @@ export default function BuilderPage() {
           editableFields: elements.filter(e => e.permissions?.content !== 'fixed').length,
           status: 'not_uploaded',
           metaobjectId: null,
-          variants,
+          variants: variantsWithJSON,
           templateJSON,
+          previewImageUrl,
           createdAt: new Date().toISOString().split('T')[0],
         });
       }
@@ -655,6 +763,7 @@ export default function BuilderPage() {
             selectedElementId={selectedElementId}
             setSelectedElementId={setSelectedElementId}
             canvasConfig={canvasConfig}
+            onCanvasConfigChange={setCanvasConfig}
             variants={variants}
             setVariants={setVariants}
             activeVariantId={activeVariantId}
@@ -665,6 +774,7 @@ export default function BuilderPage() {
             setTemplateCategory={setTemplateCategory}
             componentSettings={componentSettings}
             onComponentSettingsChange={setComponentSettings}
+            onCanvasReady={fc => { canvasInstanceRef.current = fc; }}
           />
         )
       ) : (
