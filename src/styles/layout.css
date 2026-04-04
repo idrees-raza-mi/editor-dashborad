@@ -1,0 +1,24 @@
+.page-content {
+  padding: 32px 36px;
+  max-width: 1200px;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 28px;
+}
+
+.page-title {
+  font-family: var(--font-heading);
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--black);
+}
+
+.page-subtitle {
+  font-size: 13px;
+  color: var(--mid);
+  margin-top: 4px;
+}
