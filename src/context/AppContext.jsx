@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { MOCK_TEMPLATES, MOCK_CANVASES } from '../data/mockData';
 import { callAdminProxy } from '../utils/shopifyAdmin';
 
 const AppContext = createContext(null);
@@ -8,15 +7,15 @@ export function AppProvider({ children }) {
   const [templates, setTemplates] = useState(() => {
     try {
       const saved = localStorage.getItem('psadmin-templates');
-      return saved ? JSON.parse(saved) : MOCK_TEMPLATES;
-    } catch { return MOCK_TEMPLATES; }
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
   });
 
   const [canvases, setCanvases] = useState(() => {
     try {
       const saved = localStorage.getItem('psadmin-canvases');
-      return saved ? JSON.parse(saved) : MOCK_CANVASES;
-    } catch { return MOCK_CANVASES; }
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
   });
 
   // Persist to localStorage whenever state changes

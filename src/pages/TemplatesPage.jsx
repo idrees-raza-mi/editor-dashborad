@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { Plus, AlertCircle } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
-import { callAdminProxy } from '../utils/shopifyAdmin';
+import { saveTemplateToShopify, saveCanvasToShopify, uploadPreviewImage } from '../services/shopifyAdmin';
 import StatCard from '../components/ui/StatCard';
 import Tabs from '../components/ui/Tabs';
 import Button from '../components/ui/Button';
@@ -25,6 +25,7 @@ export default function TemplatesPage() {
   const [previewType, setPreviewType] = useState(null);
   const [uploadItem, setUploadItem] = useState(null);
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
 
   const uploadedTemplates = templates.filter(t => t.status === 'uploaded').length;
   const uploadedCanvases = canvases.filter(c => c.status === 'uploaded').length;
@@ -44,53 +45,41 @@ export default function TemplatesPage() {
 
   async function handleConfirmUpload() {
     setUploadLoading(true);
+    setUploadError('');
     try {
       const item = uploadItem.type === 'template'
         ? templates.find(t => t.id === uploadItem.id)
         : canvases.find(c => c.id === uploadItem.id);
 
       if (uploadItem.type === 'template') {
-        const fields = {
-          name: item.name,
-          category: item.category || '',
-          canvas_width: String(item.canvasWidth),
-          canvas_height: String(item.canvasHeight),
-          background_color: item.backgroundColor || '#ffffff',
-          template_json: JSON.stringify(item.templateJSON),
-          preview_image_url: item.previewImageUrl || '',
-          variants_json: JSON.stringify(item.variants || []),
-          created_at: item.createdAt || new Date().toISOString(),
-        };
-        let result;
-        if (item.metaobjectId) {
-          result = await callAdminProxy('updateMetaobject', { id: item.metaobjectId, fields });
-        } else {
-          result = await callAdminProxy('createMetaobject', { type: 'design_template', fields });
+        // Upload preview image if a data URL exists but no CDN URL yet
+        let previewImageUrl = item.previewImageUrl || '';
+        if (item.previewDataUrl && !previewImageUrl) {
+          previewImageUrl = await uploadPreviewImage(
+            item.previewDataUrl,
+            `preview-${item.id}.png`
+          );
         }
-        updateTemplate(item.id, { status: 'uploaded', metaobjectId: result.id });
+
+        const result = await saveTemplateToShopify({ ...item, previewImageUrl });
+        updateTemplate(item.id, {
+          status: 'uploaded',
+          metaobjectId: result.id,
+          previewImageUrl,
+        });
       }
 
       if (uploadItem.type === 'canvas') {
-        const fields = {
-          name: item.name,
-          category: item.category || '',
-          variants_json: JSON.stringify(item.variants || []),
-          created_at: item.createdAt || new Date().toISOString(),
-        };
-        let result;
-        if (item.metaobjectId) {
-          result = await callAdminProxy('updateMetaobject', { id: item.metaobjectId, fields });
-        } else {
-          result = await callAdminProxy('createMetaobject', { type: 'canvas_config', fields });
-        }
+        const result = await saveCanvasToShopify(item);
         updateCanvas(item.id, { status: 'uploaded', metaobjectId: result.id });
       }
+
+      setUploadItem(null);
     } catch (err) {
       console.error('Upload failed:', err);
-      alert('Upload failed: ' + err.message);
+      setUploadError(err.message || 'Upload failed. Check your Shopify credentials.');
     } finally {
       setUploadLoading(false);
-      setUploadItem(null);
     }
   }
 
@@ -113,7 +102,7 @@ export default function TemplatesPage() {
       </div>
 
       {/* Stats Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
+      <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
         <StatCard label="Total Templates" value={templates.length} />
         <StatCard label="Custom Canvases" value={canvases.length} />
         <StatCard label="Uploaded" value={uploadedCount} />
@@ -154,14 +143,31 @@ export default function TemplatesPage() {
           }}
         />
       )}
+      {uploadError && (
+        <div style={{
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          display: 'flex', alignItems: 'center', gap: 10,
+          background: 'var(--red-bg)', color: 'var(--red-tx)',
+          border: '1px solid var(--red-tx)', borderRadius: 'var(--radius)',
+          padding: '12px 18px', fontSize: 13, fontFamily: 'var(--font-body)',
+          boxShadow: 'var(--shadow)', zIndex: 1000, maxWidth: 480,
+        }}>
+          <AlertCircle size={16} style={{ flexShrink: 0 }} />
+          <span>{uploadError}</span>
+          <button
+            onClick={() => setUploadError('')}
+            style={{ marginLeft: 8, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--red-tx)', fontWeight: 600, fontSize: 16, lineHeight: 1 }}
+          >×</button>
+        </div>
+      )}
       {uploadItem && (
         <ConfirmModal
           title="Upload to Shopify"
-          message="This will create a new Metaobject in your Shopify store. Continue?"
+          message={`This will ${uploadItem && (uploadItem.type === 'template' ? templates : canvases).find(i => i.id === uploadItem.id)?.metaobjectId ? 'update the existing' : 'create a new'} Metaobject in your Shopify store. Continue?`}
           confirmLabel="Upload"
           confirmVariant="primary"
           onConfirm={handleConfirmUpload}
-          onCancel={() => setUploadItem(null)}
+          onCancel={() => { setUploadItem(null); setUploadError(''); }}
           loading={uploadLoading}
         />
       )}

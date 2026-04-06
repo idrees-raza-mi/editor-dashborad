@@ -335,7 +335,7 @@ export default function TemplateBuilderMode({
       </div>
 
       {/* Three-column layout */}
-      <div style={{
+      <div className="builder-three-col" style={{
         display: 'flex',
         height: 520,
         border: '1px solid var(--border)',

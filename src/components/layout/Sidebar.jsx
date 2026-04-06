@@ -1,5 +1,6 @@
-import { NavLink } from 'react-router-dom';
-import { LayoutTemplate, Palette, Settings } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { LayoutTemplate, Palette, Settings, LogOut } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 const navItems = [
   { to: '/templates', icon: LayoutTemplate, label: 'Templates & Canvases' },
@@ -8,8 +9,16 @@ const navItems = [
 ];
 
 export default function Sidebar() {
+  const { currentUser, logout } = useAuth();
+  const navigate = useNavigate();
+
+  async function handleLogout() {
+    await logout();
+    navigate('/login', { replace: true });
+  }
+
   return (
-    <aside style={{
+    <aside className="app-sidebar" style={{
       width: 220,
       background: 'var(--black2)',
       height: '100vh',
@@ -21,7 +30,7 @@ export default function Sidebar() {
       zIndex: 100,
     }}>
       {/* Brand */}
-      <div style={{ padding: '24px 20px 20px' }}>
+      <div className="sidebar-brand" style={{ padding: '24px 20px 20px' }}>
         <div style={{
           fontFamily: 'var(--font-heading)',
           fontStyle: 'italic',
@@ -29,7 +38,7 @@ export default function Sidebar() {
           color: 'white',
           fontWeight: 400,
         }}>
-          Parties &amp; Signs
+          Event Besties
         </div>
         <div style={{
           fontSize: 10,
@@ -49,6 +58,8 @@ export default function Sidebar() {
           <NavLink
             key={to}
             to={to}
+            className="sidebar-nav-link"
+            title={label}
             style={({ isActive }) => ({
               display: 'flex',
               alignItems: 'center',
@@ -63,7 +74,7 @@ export default function Sidebar() {
               transition: 'all 0.15s',
             })}
             onMouseEnter={e => {
-              if (!e.currentTarget.classList.contains('active')) {
+              if (!e.currentTarget.getAttribute('aria-current')) {
                 e.currentTarget.style.color = 'rgba(255,255,255,0.85)';
                 e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
               }
@@ -75,14 +86,14 @@ export default function Sidebar() {
               }
             }}
           >
-            <Icon size={16} />
-            {label}
+            <Icon size={16} style={{ flexShrink: 0 }} />
+            <span className="sidebar-label">{label}</span>
           </NavLink>
         ))}
       </nav>
 
       {/* Footer */}
-      <div style={{ marginTop: 'auto', padding: 20 }}>
+      <div className="sidebar-footer" style={{ marginTop: 'auto', padding: 20 }}>
         <div style={{
           fontSize: 11,
           color: 'rgba(255,255,255,0.3)',
@@ -98,9 +109,55 @@ export default function Sidebar() {
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
+          marginBottom: 16,
         }}>
           {import.meta.env.VITE_SHOPIFY_STORE}
         </div>
+
+        {/* Signed-in user + logout */}
+        {currentUser && (
+          <>
+            <div style={{
+              fontSize: 11,
+              color: 'rgba(255,255,255,0.35)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              marginBottom: 8,
+            }}>
+              {currentUser.email}
+            </div>
+            <button
+              onClick={handleLogout}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                background: 'transparent',
+                border: '1px solid rgba(255,255,255,0.15)',
+                borderRadius: 'var(--radius-sm)',
+                color: 'rgba(255,255,255,0.5)',
+                fontSize: 12,
+                fontFamily: 'var(--font-body)',
+                padding: '6px 10px',
+                cursor: 'pointer',
+                width: '100%',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.color = 'rgba(255,255,255,0.85)';
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.color = 'rgba(255,255,255,0.5)';
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)';
+              }}
+            >
+              <LogOut size={13} />
+              Sign out
+            </button>
+          </>
+        )}
       </div>
     </aside>
   );

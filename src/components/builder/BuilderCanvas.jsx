@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Canvas, IText, Rect, FabricImage } from 'fabric';
+import { Canvas, IText, Rect, FabricImage, Path } from 'fabric';
 import { ZoomIn, ZoomOut, RotateCcw, RotateCw, Trash2 } from 'lucide-react';
 import Button from '../ui/Button';
+import { scaleSvgPathToCanvas } from '../../utils/svgPathUtils';
 
 const MAX_DISPLAY = 520;
 
@@ -106,6 +107,22 @@ export default function BuilderCanvas({
     fc.setDimensions({ width: effectiveWidth, height: effectiveHeight });
     fc.renderAll();
   }, [effectiveWidth, effectiveHeight, canvasReady]);
+
+  // ── CLIP PATH: apply SVG shape boundary from loaded canvas ───────
+  useEffect(() => {
+    const fc = canvasInstanceRef.current;
+    if (!fc || !canvasReady) return;
+    const svgPath = canvasConfig?.svgPath;
+    if (svgPath) {
+      const scaled = scaleSvgPathToCanvas(svgPath, effectiveWidth, effectiveHeight, 16);
+      if (scaled) {
+        fc.clipPath = new Path(scaled, { absolutePositioned: true, selectable: false, evented: false });
+      }
+    } else {
+      fc.clipPath = null;
+    }
+    fc.requestRenderAll();
+  }, [canvasConfig?.svgPath, effectiveWidth, effectiveHeight, canvasReady]);
 
   // ── SYNC: elements → canvas ─────────────────────────────────────
   useEffect(() => {

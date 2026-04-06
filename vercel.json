@@ -1,6 +1,7 @@
 {
   "functions": {
-    "api/shopify.js": { "maxDuration": 30 }
+    "api/shopify.js": { "maxDuration": 30 },
+    "api/upload.js":  { "maxDuration": 30 }
   },
   "headers": [
     {

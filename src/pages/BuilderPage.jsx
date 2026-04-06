@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Save, Upload, ChevronRight, LayoutTemplate, Layers, PenTool } from 'lucide-react';
+import { ArrowLeft, Save, Upload, ChevronRight, LayoutTemplate, Layers } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import Button from '../components/ui/Button';
 import Toast from '../components/ui/Toast';
@@ -85,7 +85,7 @@ const CANVAS_STEPS = [
 function CanvasSetup({ onComplete }) {
   const { canvases } = useAppContext();
   const [productName, setProductName]   = useState('');
-  const [sizeOption, setSizeOption]     = useState('simple'); // 'simple' | 'load' | 'create'
+  const [sizeOption, setSizeOption]     = useState('simple'); // 'simple' | 'load'
   const [customW, setCustomW]           = useState(600);
   const [customH, setCustomH]           = useState(500);
   const [bgColor, setBgColor]           = useState('#FAF7F2');
@@ -107,19 +107,21 @@ function CanvasSetup({ onComplete }) {
   }
 
   function handleStart() {
-    let width = customW, height = customH;
+    let width = customW, height = customH, svgPath = null, bg = bgColor;
 
     if (sizeOption === 'load' && selectedCanvasId) {
       const c = canvases.find(cv => cv.id === selectedCanvasId);
       if (c?.variants?.[0]) {
-        width  = c.variants[0].canvasWidth;
-        height = c.variants[0].canvasHeight;
+        width   = c.variants[0].canvasWidth;
+        height  = c.variants[0].canvasHeight;
+        svgPath = c.variants[0].svgPath   || null;
+        bg      = c.variants[0].backgroundColor || bgColor;
       }
     }
 
     onComplete({
       productName,
-      canvasConfig: { width, height, backgroundColor: bgColor },
+      canvasConfig: { width, height, backgroundColor: bg, svgPath },
     });
   }
 
@@ -248,44 +250,89 @@ function CanvasSetup({ onComplete }) {
               </div>
               {sizeOption === 'load' && (
                 canvases.length === 0 ? (
-                  <p style={{ fontSize: 13, color: 'var(--light)' }}>No canvases saved yet.</p>
+                  <p style={{ fontSize: 13, color: 'var(--light)' }}>No canvases saved yet. Create one in Canvas Config first.</p>
                 ) : (
-                  <select
-                    style={{ ...inputStyle, fontSize: 13 }}
-                    value={selectedCanvasId}
-                    onChange={e => setSelectedCanvasId(e.target.value)}
-                  >
-                    {canvases.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} — {c.variants[0]?.canvasWidth}×{c.variants[0]?.canvasHeight}px
-                      </option>
-                    ))}
-                  </select>
-                )
-              )}
-            </div>
+                  <div onClick={e => e.stopPropagation()}>
+                    {/* Canvas picker */}
+                    <select
+                      style={{ ...inputStyle, fontSize: 13, marginBottom: 12 }}
+                      value={selectedCanvasId}
+                      onChange={e => setSelectedCanvasId(e.target.value)}
+                    >
+                      {canvases.map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} — {c.variants.length} variant{c.variants.length !== 1 ? 's' : ''}
+                        </option>
+                      ))}
+                    </select>
 
-            {/* Option 3: Create new shape */}
-            <div
-              onClick={() => setSizeOption('create')}
-              style={{
-                border: `2px solid ${sizeOption === 'create' ? 'var(--black)' : 'var(--border)'}`,
-                borderRadius: 'var(--radius-sm)',
-                padding: '14px 16px',
-                cursor: 'pointer',
-                background: sizeOption === 'create' ? 'var(--cream)' : 'white',
-                transition: 'all 0.12s',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <PenTool size={16} color="var(--mid)" />
-                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--black)' }}>Create New Shape</span>
-                <span style={{ fontSize: 12, color: 'var(--light)', marginLeft: 'auto' }}>Canvas Configurator (Phase 07)</span>
-              </div>
-              {sizeOption === 'create' && (
-                <p style={{ fontSize: 12, color: 'var(--mid)', marginTop: 8 }}>
-                  Canvas shape builder coming in Phase 07. For now, use Simple Size or Load Canvas.
-                </p>
+                    {/* Preview of selected canvas */}
+                    {(() => {
+                      const sel = canvases.find(c => c.id === selectedCanvasId);
+                      if (!sel) return null;
+                      return (
+                        <div style={{
+                          background: 'var(--cream2)',
+                          border: '1px solid var(--border)',
+                          borderRadius: 'var(--radius-sm)',
+                          padding: 12,
+                          display: 'flex',
+                          gap: 14,
+                          alignItems: 'flex-start',
+                        }}>
+                          {/* Shape SVG preview */}
+                          <div style={{
+                            width: 72, height: 72, flexShrink: 0,
+                            background: 'white', border: '1px solid var(--border)',
+                            borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          }}>
+                            {sel.variants[0]?.svgPath ? (
+                              <svg
+                                viewBox={`0 0 ${sel.variants[0].canvasWidth} ${sel.variants[0].canvasHeight}`}
+                                style={{ width: 54, height: 54 }}
+                              >
+                                <path
+                                  d={sel.variants[0].svgPath}
+                                  fill={sel.variants[0].backgroundColor || '#FAF7F2'}
+                                  stroke="rgba(0,0,0,0.2)"
+                                  strokeWidth={sel.variants[0].canvasWidth * 0.014}
+                                />
+                              </svg>
+                            ) : (
+                              <div style={{
+                                width: 44, height: 44,
+                                background: sel.variants[0]?.backgroundColor || '#FAF7F2',
+                                border: '1.5px solid rgba(0,0,0,0.15)',
+                                borderRadius: 3,
+                              }} />
+                            )}
+                          </div>
+                          {/* Info */}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--black)', marginBottom: 6 }}>
+                              {sel.name}
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                              {sel.variants.map(v => (
+                                <span key={v.id} style={{
+                                  fontSize: 11, padding: '2px 8px', borderRadius: 10,
+                                  background: 'white', border: '1px solid var(--border)',
+                                  color: 'var(--mid)',
+                                }}>
+                                  {v.label || 'Variant'} — {v.canvasWidth}×{v.canvasHeight}px
+                                  {v.svgPath ? ' · shape' : ' · rect'}
+                                </span>
+                              ))}
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--green-tx)', marginTop: 6 }}>
+                              Shape boundary will be applied to the builder canvas
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )
               )}
             </div>
 
@@ -296,7 +343,7 @@ function CanvasSetup({ onComplete }) {
           variant="primary"
           icon={ChevronRight}
           onClick={handleStart}
-          disabled={!canStart || sizeOption === 'create'}
+          disabled={!canStart}
           style={{ width: '100%', justifyContent: 'center' }}
         >
           Start Building
