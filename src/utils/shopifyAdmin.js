@@ -25,18 +25,22 @@ export async function callAdminProxy(action, data) {
 }
 
 export async function uploadImageToShopify(blob, filename) {
+  console.log('[UPLOAD] Starting upload, filename:', filename, 'size:', blob.size);
+  
   // Step 1: Stage
   const staged = await callAdminProxy('stagedUpload', {
     filename,
     mimeType: blob.type,
     fileSize: blob.size,
   });
+  console.log('[UPLOAD] Staged:', staged);
 
   // Step 2: Upload to S3
   const formData = new FormData();
   staged.parameters.forEach(({ name, value }) => formData.append(name, value));
   formData.append('file', blob, filename);
   const uploadRes = await fetch(staged.url, { method: 'POST', body: formData });
+  console.log('[UPLOAD] S3 upload status:', uploadRes.status);
   if (!uploadRes.ok) throw new Error('S3 upload failed');
 
   // Step 3: Create file in Shopify
@@ -44,11 +48,25 @@ export async function uploadImageToShopify(blob, filename) {
     originalSource: staged.resourceUrl,
     contentType: 'IMAGE',
   });
+  console.log('[UPLOAD] File record:', fileRecord);
 
-  // Wait briefly for processing
-  await new Promise(r => setTimeout(r, 1500));
+  // Poll for URL if not immediately available
+  let cdnUrl = fileRecord?.image?.url;
+  let fileId = fileRecord?.id;
+  
+  if (!cdnUrl && fileId) {
+    console.log('[UPLOAD] URL not ready, polling...');
+    for (let i = 0; i < 5; i++) {
+      await new Promise(r => setTimeout(r, 2000));
+      // Query the file to get the URL
+      const refreshed = await callAdminProxy('getFile', { id: fileId });
+      console.log('[UPLOAD] Refreshed:', refreshed);
+      cdnUrl = refreshed?.image?.url;
+      if (cdnUrl) break;
+    }
+  }
 
-  const cdnUrl = fileRecord.image?.url;
+  console.log('[UPLOAD] CDN URL:', cdnUrl);
   if (!cdnUrl) throw new Error('No CDN URL returned');
-  return { cdnUrl, fileId: fileRecord.id || null };
+  return { cdnUrl, fileId };
 }

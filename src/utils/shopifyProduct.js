@@ -30,18 +30,24 @@ export async function publishTemplateAsProduct(params) {
   let imageUrl = null;
   try {
     if (canvasDataUrl) {
+      console.log('[SHOPIFY] Got canvasDataUrl, length:', canvasDataUrl.length);
       const response = await fetch(canvasDataUrl);
       const blob = await response.blob();
+      console.log('[SHOPIFY] Blob size:', blob.size, 'type:', blob.type);
       const uploadResult = await uploadImageToShopify(
         blob,
         productTitle.replace(/\s+/g, '-').toLowerCase() + '-preview.png'
       );
+      console.log('[SHOPIFY] Upload result:', uploadResult);
       imageUrl = uploadResult.cdnUrl;
+      console.log('[SHOPIFY] Attaching image to product:', productId, imageUrl);
       await callAdminProxy('attachProductImage', {
         productId,
         imageUrl,
         alt: productTitle,
       });
+    } else {
+      console.log('[SHOPIFY] No canvasDataUrl provided, skipping image upload');
     }
   } catch (imgErr) {
     console.warn('Image upload failed, continuing:', imgErr);

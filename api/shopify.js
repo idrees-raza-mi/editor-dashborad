@@ -323,6 +323,21 @@ export default async function handler(req, res) {
         return res.json(result.product);
       }
 
+      case 'getFile': {
+        const query = `
+          query getFile($id: ID!) {
+            node(id: $id) {
+              ... on MediaImage {
+                id
+                image { url }
+              }
+            }
+          }
+        `;
+        const result = await shopifyRequest(query, { id: data.id });
+        return res.json(result.node);
+      }
+
       default:
         return res.status(400).json({ error: 'Unknown action: ' + action });
     }

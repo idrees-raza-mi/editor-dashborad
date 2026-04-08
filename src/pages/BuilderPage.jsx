@@ -814,8 +814,10 @@ export default function BuilderPage() {
     let canvasDataUrl = null;
     try {
       const fc = canvasInstanceRef.current;
+      console.log('[PUBLISH] Canvas ref:', !!fc);
       if (fc) {
         canvasDataUrl = fc.toDataURL({ format: 'png', quality: 0.85 });
+        console.log('[PUBLISH] Data URL length:', canvasDataUrl?.length);
       }
     } catch (e) {
       console.warn('Canvas capture failed:', e);
@@ -855,8 +857,10 @@ export default function BuilderPage() {
     let canvasDataUrl = null;
     try {
       const fc = configuratorCanvasRef.current;
+      console.log('[PUBLISH CANVAS] Canvas ref:', !!fc);
       if (fc) {
         canvasDataUrl = fc.toDataURL({ format: 'png', quality: 0.85 });
+        console.log('[PUBLISH CANVAS] Data URL length:', canvasDataUrl?.length);
       }
     } catch (e) {
       console.warn('Canvas capture failed:', e);
