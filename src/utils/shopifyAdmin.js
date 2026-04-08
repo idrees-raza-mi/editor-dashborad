@@ -43,5 +43,5 @@ export async function uploadImageToShopify(blob, filename) {
 
   const cdnUrl = fileRecord.image?.url;
   if (!cdnUrl) throw new Error('No CDN URL returned');
-  return cdnUrl;
+  return { cdnUrl, fileId: fileRecord.id || null };
 }

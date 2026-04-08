@@ -1,5 +1,33 @@
+import { useState, useEffect } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import Button from '../ui/Button';
+
+// Decouples display string from numeric state — fixes React controlled number input issues
+function NumericInput({ value, onChange, min = 0, step = 1, style, placeholder }) {
+  const [local, setLocal] = useState(String(value ?? ''));
+
+  useEffect(() => { setLocal(String(value ?? '')); }, [value]);
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={local}
+      placeholder={placeholder}
+      style={style}
+      onChange={e => {
+        const raw = e.target.value;
+        if (/^[0-9.]*$/.test(raw)) setLocal(raw);
+      }}
+      onBlur={() => {
+        const n = parseFloat(local);
+        const valid = isNaN(n) || n < min ? min : n;
+        setLocal(String(valid));
+        onChange(valid);
+      }}
+    />
+  );
+}
 
 function FieldInput({ label, children }) {
   return (
@@ -108,32 +136,34 @@ export default function VariantsEditor({ variants, onChange, type = 'template', 
             <FieldInput label="Price">
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span style={{ fontSize: 13, color: 'var(--mid)', flexShrink: 0 }}>£</span>
-                <input
+                <NumericInput
                   style={inputStyle}
-                  type="number"
-                  step="0.01"
                   value={variant.price}
+                  min={0}
+                  step={0.01}
                   placeholder="29.99"
-                  onChange={e => updateVariant(variant.id, 'price', e.target.value)}
+                  onChange={val => updateVariant(variant.id, 'price', val)}
                 />
               </div>
             </FieldInput>
 
             <FieldInput label="Width (px)">
-              <input
+              <NumericInput
                 style={inputStyle}
-                type="number"
                 value={variant.canvasWidth}
-                onChange={e => updateVariant(variant.id, 'canvasWidth', Number(e.target.value))}
+                min={50}
+                placeholder="600"
+                onChange={val => updateVariant(variant.id, 'canvasWidth', val)}
               />
             </FieldInput>
 
             <FieldInput label="Height (px)">
-              <input
+              <NumericInput
                 style={inputStyle}
-                type="number"
                 value={variant.canvasHeight}
-                onChange={e => updateVariant(variant.id, 'canvasHeight', Number(e.target.value))}
+                min={50}
+                placeholder="500"
+                onChange={val => updateVariant(variant.id, 'canvasHeight', val)}
               />
             </FieldInput>
           </div>

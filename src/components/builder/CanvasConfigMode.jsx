@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Plus, Trash2, Info, RefreshCw, ExternalLink, Square, Pencil } from 'lucide-react';
 import ConfiguratorCanvas from './ConfiguratorCanvas';
 import ShapeCreator from './ShapeCreator';
@@ -42,6 +42,30 @@ function UnitToggle({ unit, onChange }) {
         </button>
       ))}
     </div>
+  );
+}
+
+function NumericInput({ value, onChange, min = 0, step = 1, style, placeholder }) {
+  const [local, setLocal] = useState(String(value ?? ''));
+  useEffect(() => { setLocal(String(value ?? '')); }, [value]);
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={local}
+      placeholder={placeholder}
+      style={style}
+      onChange={e => {
+        const raw = e.target.value;
+        if (/^[0-9.]*$/.test(raw)) setLocal(raw);
+      }}
+      onBlur={() => {
+        const n = parseFloat(local);
+        const valid = isNaN(n) || n < min ? min : n;
+        setLocal(String(valid));
+        onChange(valid);
+      }}
+    />
   );
 }
 
@@ -181,8 +205,8 @@ export default function CanvasConfigMode({
               <label style={{ display: 'block', fontSize: 12, color: 'var(--mid)', marginBottom: 5 }}>Price</label>
               <div className="price-input-wrapper">
                 <span>£</span>
-                <input style={cfgInput} type="number" step="0.01" value={activeVariant.price} placeholder="89.99"
-                  onChange={e => updateActiveVariant({ price: e.target.value })} />
+                <NumericInput style={cfgInput} value={activeVariant.price} min={0} step={0.01} placeholder="89.99"
+                  onChange={val => updateActiveVariant({ price: val })} />
               </div>
             </div>
           </div>
@@ -205,34 +229,24 @@ export default function CanvasConfigMode({
               <label style={{ display: 'block', fontSize: 12, color: 'var(--mid)', marginBottom: 5 }}>
                 Width ({unit})
               </label>
-              <input
+              <NumericInput
                 style={cfgInput}
-                type="number"
+                value={unit === 'cm' ? pxToCm(activeVariant.canvasWidth) : activeVariant.canvasWidth}
                 min={unit === 'cm' ? 1 : 50}
                 step={unit === 'cm' ? 0.1 : 1}
-                value={unit === 'cm' ? pxToCm(activeVariant.canvasWidth) : activeVariant.canvasWidth}
-                onChange={e => {
-                  const n = Number(e.target.value);
-                  if (!n || n <= 0) return;
-                  updateActiveVariant({ canvasWidth: unit === 'cm' ? cmToPx(n) : Math.round(n) });
-                }}
+                onChange={n => updateActiveVariant({ canvasWidth: unit === 'cm' ? cmToPx(n) : Math.round(n) })}
               />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 12, color: 'var(--mid)', marginBottom: 5 }}>
                 Height ({unit})
               </label>
-              <input
+              <NumericInput
                 style={cfgInput}
-                type="number"
+                value={unit === 'cm' ? pxToCm(activeVariant.canvasHeight) : activeVariant.canvasHeight}
                 min={unit === 'cm' ? 1 : 50}
                 step={unit === 'cm' ? 0.1 : 1}
-                value={unit === 'cm' ? pxToCm(activeVariant.canvasHeight) : activeVariant.canvasHeight}
-                onChange={e => {
-                  const n = Number(e.target.value);
-                  if (!n || n <= 0) return;
-                  updateActiveVariant({ canvasHeight: unit === 'cm' ? cmToPx(n) : Math.round(n) });
-                }}
+                onChange={n => updateActiveVariant({ canvasHeight: unit === 'cm' ? cmToPx(n) : Math.round(n) })}
               />
             </div>
           </div>

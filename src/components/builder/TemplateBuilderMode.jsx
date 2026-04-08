@@ -4,7 +4,7 @@ import BuilderCanvas from './BuilderCanvas';
 import PermissionsPanel from './PermissionsPanel';
 import VariantsEditor from './VariantsEditor';
 import Button from '../ui/Button';
-import { Undo2, Redo2, Type, ImageIcon, Square, PaintBucket } from 'lucide-react';
+import { Undo2, Redo2, Type, ImageIcon, Square, PaintBucket, AlertTriangle, X } from 'lucide-react';
 
 // ── Toggle switch ──────────────────────────────────────────────────
 function ToggleSwitch({ checked, onChange, disabled }) {
@@ -88,6 +88,15 @@ export default function TemplateBuilderMode({
 }) {
   const canvasRef           = useRef(null);
   const imageInputRef       = useRef(null);
+
+  // Import notice banner
+  const [noticeDismissed, setNoticeDismissed] = useState(false);
+  const hasImportedElements = elements.some(el => el.id?.startsWith('imported-'));
+
+  // Re-show banner whenever a fresh batch of imported elements arrives
+  useEffect(() => {
+    if (hasImportedElements) setNoticeDismissed(false);
+  }, [hasImportedElements]);
   const pendingImageElement = useRef(null);
   const prevVariantIdRef    = useRef(activeVariantId);
   const canvasConfigInitRef = useRef(true);
@@ -342,14 +351,27 @@ export default function TemplateBuilderMode({
         borderRadius: 'var(--radius)',
         overflow: 'hidden',
       }}>
-        <LayersPanel
-          elements={elements}
-          selectedElementId={selectedElementId}
-          onSelectElement={setSelectedElementId}
-          onAddElement={handleAddElement}
-          onDeleteElement={handleDeleteElement}
-          componentSettings={componentSettings}
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          {hasImportedElements && !noticeDismissed && (
+            <div className="import-notice-banner">
+              <span style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                <AlertTriangle size={13} style={{ flexShrink: 0, marginTop: 1 }} />
+                Imported design — set permissions for each element before exporting to Shopify.
+              </span>
+              <button onClick={() => setNoticeDismissed(true)} title="Dismiss">
+                <X size={13} />
+              </button>
+            </div>
+          )}
+          <LayersPanel
+            elements={elements}
+            selectedElementId={selectedElementId}
+            onSelectElement={setSelectedElementId}
+            onAddElement={handleAddElement}
+            onDeleteElement={handleDeleteElement}
+            componentSettings={componentSettings}
+          />
+        </div>
         <BuilderCanvas
           elements={elements}
           selectedElementId={selectedElementId}

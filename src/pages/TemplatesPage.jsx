@@ -71,7 +71,15 @@ export default function TemplatesPage() {
 
       if (uploadItem.type === 'canvas') {
         const result = await saveCanvasToShopify(item);
-        updateCanvas(item.id, { status: 'uploaded', metaobjectId: result.id });
+        const savedVariants = item.variants.map((v, i) => ({
+          ...v,
+          metaobjectId: result.variants?.[i]?.metaobjectId || null,
+        }));
+        updateCanvas(item.id, {
+          status: 'uploaded',
+          metaobjectId: result.id,
+          variants: savedVariants,
+        });
       }
 
       setUploadItem(null);

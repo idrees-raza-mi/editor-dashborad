@@ -118,26 +118,84 @@ export function buildTemplateJSON(elements, canvasConfig, componentSettings) {
   };
 }
 
-export function buildTemplateMetaobjectFields(template, variants, previewImageUrl) {
+// 96 DPI: 1 cm = 96/2.54 px
+const pxToCm = px => String(Math.round(px * 2.54 / 96 * 100) / 100);
+
+function formatPrice(price) {
+  if (!price && price !== 0) return '';
+  const s = String(price);
+  return s.startsWith('£') ? s : `£${s}`;
+}
+
+export function buildTemplateMetaobjectFields(template, previewFileId) {
+  const w = template.canvasWidth;
+  const h = template.canvasHeight;
+
+  const availableSizes = (template.variants || []).map((v, i) => ({
+    id:     v.id || String(i + 1),
+    label:  v.label  || `Size ${i + 1}`,
+    price:  formatPrice(v.price),
+    width:  v.canvasWidth  || w,
+    height: v.canvasHeight || h,
+  }));
+
+  const fields = {
+    name:             template.name,
+    category:         template.category || '',
+    canvas_width:     String(Math.round(w)),
+    canvas_height:    String(Math.round(h)),
+    canvas_width_cm:  pxToCm(w),
+    canvas_height_cm: pxToCm(h),
+    background_color: template.backgroundColor || '#ffffff',
+    template_json:    JSON.stringify(template.templateJSON),
+    available_size:   JSON.stringify(availableSizes),
+    version:          '5.4.0',
+    status:           'active',
+  };
+
+  if (template.svgClipPath) fields.svg_clip_path = template.svgClipPath;
+  if (previewFileId)        fields.preview_image  = previewFileId;
+
+  return fields;
+}
+
+// Canvas summary — aggregates all variants into a single fields object
+export function buildCanvasMetaobjectFields(canvas, variants) {
   return {
-    name:              template.name,
-    category:          template.category,
-    canvas_width:      String(template.canvasWidth),
-    canvas_height:     String(template.canvasHeight),
-    background_color:  template.backgroundColor,
-    template_json:     JSON.stringify(template.templateJSON),
-    preview_image_url: previewImageUrl || '',
-    variants_json:     JSON.stringify(variants),
-    created_at:        new Date().toISOString(),
+    name:          canvas.name,
+    category:      canvas.category || '',
+    variant_count: String((variants || []).length),
+    variants_json: JSON.stringify(
+      (variants || []).map(v => ({
+        id:              v.id,
+        label:           v.label           || '',
+        price:           formatPrice(v.price),
+        canvasWidth:     v.canvasWidth      || 400,
+        canvasHeight:    v.canvasHeight     || 500,
+        svgPath:         v.svgPath          || null,
+        backgroundColor: v.backgroundColor || '#ffffff',
+      }))
+    ),
+    status: 'active',
   };
 }
 
-export function buildCanvasMetaobjectFields(canvas, variants) {
+// One variant → one design_canvas metaobject
+export function buildCanvasVariantFields(canvas, variant) {
+  const w = variant.canvasWidth  || 400;
+  const h = variant.canvasHeight || 500;
   return {
-    name:         canvas.name,
-    category:     canvas.category,
-    variants_json: JSON.stringify(variants),
-    created_at:   new Date().toISOString(),
+    name:             canvas.name,
+    category:         canvas.category || '',
+    canvas_width:     String(Math.round(w)),
+    canvas_height:    String(Math.round(h)),
+    canvas_width_cm:  pxToCm(w),
+    canvas_height_cm: pxToCm(h),
+    svg_clip_path:    variant.svgPath         || '',
+    background_color: variant.backgroundColor || '#ffffff',
+    size_label:       variant.label           || '',
+    price:            formatPrice(variant.price),
+    status:           'active',
   };
 }
 

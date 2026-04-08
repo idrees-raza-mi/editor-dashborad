@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(vercel deploy:*)",
-      "Bash(vercel link:*)"
+      "Bash(vercel link:*)",
+      "Bash(vercel --prod)",
+      "Bash(netlify status:*)",
+      "Bash(rm netlify.toml)",
+      "Bash(rm -rf netlify/)",
+      "Bash(vercel:*)"
     ]
   }
 }

@@ -23,6 +23,10 @@ export default async function handler(req, res) {
   const TOKEN = process.env.SHOPIFY_ADMIN_TOKEN;
   const ENDPOINT = `${STORE}/admin/api/2024-01/graphql.json`;
 
+  if (!STORE || !TOKEN) {
+    return res.status(500).json({ error: 'Missing SHOPIFY_STORE_URL or SHOPIFY_ADMIN_TOKEN env vars' });
+  }
+
   const shopifyRequest = async (query, variables) => {
     const r = await fetch(ENDPOINT, {
       method: 'POST',
@@ -32,8 +36,17 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({ query, variables }),
     });
+    if (!r.ok) {
+      const text = await r.text();
+      throw new Error(`Shopify HTTP ${r.status}: ${text.slice(0, 300)}`);
+    }
     const json = await r.json();
-    if (json.errors) throw new Error(json.errors[0].message);
+    if (json.errors) {
+      const msg = Array.isArray(json.errors)
+        ? (json.errors[0]?.message || JSON.stringify(json.errors[0]))
+        : String(json.errors);
+      throw new Error(msg);
+    }
     return json.data;
   };
 
@@ -118,7 +131,16 @@ export default async function handler(req, res) {
               nodes {
                 id
                 type
-                fields { key value }
+                fields {
+                  key
+                  value
+                  reference {
+                    ... on MediaImage {
+                      id
+                      image { url }
+                    }
+                  }
+                }
               }
             }
           }

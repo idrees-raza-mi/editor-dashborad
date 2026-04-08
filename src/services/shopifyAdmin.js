@@ -26,18 +26,42 @@ export async function shopifyQuery(action, data) {
  * Save (create or update) a template metaobject.
  * Returns { id, handle } of the saved metaobject.
  */
+const pxToCm = px => String(Math.round(px * 2.54 / 96 * 100) / 100);
+
+function formatPrice(price) {
+  if (!price && price !== 0) return '';
+  const s = String(price);
+  return s.startsWith('£') ? s : `£${s}`;
+}
+
 export async function saveTemplateToShopify(template) {
+  const w = template.canvasWidth  || 800;
+  const h = template.canvasHeight || 600;
+
+  const availableSizes = (template.variants || []).map((v, i) => ({
+    id:     v.id || String(i + 1),
+    label:  v.label  || `Size ${i + 1}`,
+    price:  formatPrice(v.price),
+    width:  v.canvasWidth  || w,
+    height: v.canvasHeight || h,
+  }));
+
   const fields = {
-    name:              template.name,
-    category:          template.category || '',
-    canvas_width:      String(template.canvasWidth  || 800),
-    canvas_height:     String(template.canvasHeight || 600),
-    background_color:  template.backgroundColor || '#ffffff',
-    template_json:     JSON.stringify(template.templateJSON || {}),
-    preview_image_url: template.previewImageUrl || '',
-    variants_json:     JSON.stringify(template.variants || []),
-    created_at:        template.createdAt || new Date().toISOString(),
+    name:             template.name,
+    category:         template.category || '',
+    canvas_width:     String(Math.round(w)),
+    canvas_height:    String(Math.round(h)),
+    canvas_width_cm:  pxToCm(w),
+    canvas_height_cm: pxToCm(h),
+    background_color: template.backgroundColor || '#ffffff',
+    template_json:    JSON.stringify(template.templateJSON || {}),
+    available_sizes:  JSON.stringify(availableSizes),
+    version:          '5.4.0',
+    status:           'active',
   };
+
+  if (template.svgClipPath)  fields.svg_clip_path = template.svgClipPath;
+  if (template.previewFileId) fields.preview_image = template.previewFileId;
 
   if (template.metaobjectId) {
     return callAdminProxy('updateMetaobject', { id: template.metaobjectId, fields });
@@ -55,20 +79,27 @@ export async function fetchTemplatesFromShopify() {
 
   return result.nodes.map(node => {
     const f = {};
-    node.fields.forEach(({ key, value }) => { f[key] = value; });
+    const refs = {};
+    node.fields.forEach(({ key, value, reference }) => {
+      f[key] = value;
+      if (reference) refs[key] = reference;
+    });
     return {
       id:              node.id,
       metaobjectId:    node.id,
-      name:            f.name            || 'Untitled',
-      category:        f.category        || '',
-      canvasWidth:     parseInt(f.canvas_width)  || 800,
-      canvasHeight:    parseInt(f.canvas_height) || 600,
+      name:            f.name             || 'Untitled',
+      category:        f.category         || '',
+      canvasWidth:     parseInt(f.canvas_width)   || 800,
+      canvasHeight:    parseInt(f.canvas_height)  || 600,
       backgroundColor: f.background_color || '#ffffff',
-      templateJSON:    f.template_json   ? JSON.parse(f.template_json)  : null,
-      previewImageUrl: f.preview_image_url || null,
-      variants:        f.variants_json   ? JSON.parse(f.variants_json) : [],
-      status:          'uploaded',
-      createdAt:       f.created_at      || '',
+      svgClipPath:     f.svg_clip_path    || null,
+      templateJSON:    f.template_json    ? JSON.parse(f.template_json)    : null,
+      variants:        f.available_sizes  ? JSON.parse(f.available_sizes)  : [],
+      previewImageUrl: refs.preview_image?.image?.url || null,
+      previewFileId:   f.preview_image    || null,
+      status:          f.status           || 'active',
+      version:         f.version          || '',
+      createdAt:       '',
       elements:        0,
       editableFields:  0,
     };
@@ -80,44 +111,80 @@ export async function fetchTemplatesFromShopify() {
 // ---------------------------------------------------------------------------
 
 /**
- * Save (create or update) a canvas_config metaobject.
- * Returns { id, handle } of the saved metaobject.
+ * Save all variants of a canvas — one design_canvas metaobject per variant.
+ * Returns array of { variantId, metaobjectId }.
  */
 export async function saveCanvasToShopify(canvas) {
-  const fields = {
-    name:          canvas.name,
-    category:      canvas.category || '',
-    variants_json: JSON.stringify(canvas.variants || []),
-    created_at:    canvas.createdAt || new Date().toISOString(),
-  };
+  const variants = canvas.variants || [];
+  const results  = [];
 
-  if (canvas.metaobjectId) {
-    return callAdminProxy('updateMetaobject', { id: canvas.metaobjectId, fields });
+  for (const variant of variants) {
+    const w = variant.canvasWidth  || 400;
+    const h = variant.canvasHeight || 500;
+    const fields = {
+      name:             canvas.name,
+      category:         canvas.category || '',
+      canvas_width:     String(Math.round(w)),
+      canvas_height:    String(Math.round(h)),
+      canvas_width_cm:  pxToCm(w),
+      canvas_height_cm: pxToCm(h),
+      svg_clip_path:    variant.svgPath         || '',
+      background_color: variant.backgroundColor || '#ffffff',
+      size_label:       variant.label           || '',
+      price:            formatPrice(variant.price),
+      status:           'active',
+    };
+
+    let result;
+    if (variant.metaobjectId) {
+      result = await callAdminProxy('updateMetaobject', { id: variant.metaobjectId, fields });
+    } else {
+      result = await callAdminProxy('createMetaobject', { type: 'design_canvas', fields });
+    }
+    results.push({ variantId: variant.id, metaobjectId: result.id });
   }
-  return callAdminProxy('createMetaobject', { type: 'canvas_config', fields });
+
+  // Return first result's id for backwards-compat with callers that use result.id
+  return { id: results[0]?.metaobjectId || null, variants: results };
 }
 
 /**
- * Fetch all canvas_config metaobjects from Shopify.
- * Returns an array of canvas objects shaped for AppContext.
+ * Fetch all design_canvas metaobjects and group by name into canvas objects.
  */
 export async function fetchCanvasesFromShopify() {
-  const result = await callAdminProxy('listMetaobjects', { type: 'canvas_config', first: 50 });
+  const result = await callAdminProxy('listMetaobjects', { type: 'design_canvas', first: 100 });
   if (!result?.nodes) return [];
 
-  return result.nodes.map(node => {
+  // Group individual size metaobjects by canvas name
+  const grouped = {};
+  result.nodes.forEach(node => {
     const f = {};
     node.fields.forEach(({ key, value }) => { f[key] = value; });
-    return {
-      id:           node.id,
-      metaobjectId: node.id,
-      name:         f.name          || 'Untitled',
-      category:     f.category      || '',
-      variants:     f.variants_json ? JSON.parse(f.variants_json) : [],
-      status:       'uploaded',
-      createdAt:    f.created_at    || '',
-    };
+    const name = f.name || 'Untitled';
+    if (!grouped[name]) {
+      grouped[name] = {
+        id:           node.id,
+        metaobjectId: node.id,
+        name,
+        category:     f.category || '',
+        status:       'uploaded',
+        createdAt:    '',
+        variants:     [],
+      };
+    }
+    grouped[name].variants.push({
+      id:              node.id,
+      metaobjectId:    node.id,
+      label:           f.size_label       || '',
+      price:           (f.price || '').replace('£', ''),
+      canvasWidth:     parseInt(f.canvas_width)  || 400,
+      canvasHeight:    parseInt(f.canvas_height) || 500,
+      svgPath:         f.svg_clip_path    || null,
+      backgroundColor: f.background_color || '#ffffff',
+    });
   });
+
+  return Object.values(grouped);
 }
 
 // ---------------------------------------------------------------------------

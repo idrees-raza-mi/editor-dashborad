@@ -400,3 +400,74 @@
   color: var(--mid);
   margin-top: 4px;
 }
+
+/* ── SVG Import ──────────────────────────────────────────────────── */
+.btn-import-svg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: white;
+  color: var(--black);
+  font-size: 13px;
+  font-family: var(--font-body);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-import-svg:hover {
+  background: var(--cream2);
+  border-color: var(--mid);
+}
+
+.btn-import-svg:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.import-error-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--red-tx);
+  background: var(--red-bg);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  max-width: 320px;
+}
+
+.import-notice-banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  background: var(--amber-bg);
+  border-bottom: 1px solid var(--amber-tx);
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--amber-tx);
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.import-notice-banner button {
+  background: none;
+  border: none;
+  color: var(--amber-tx);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 0.8s linear infinite;
+}

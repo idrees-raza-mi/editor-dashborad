@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Save, Upload, ChevronRight, LayoutTemplate, Layers } from 'lucide-react';
+import { ArrowLeft, Save, Upload, ChevronRight, LayoutTemplate, Layers, RefreshCw, AlertCircle } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import Button from '../components/ui/Button';
 import Toast from '../components/ui/Toast';
@@ -8,8 +8,9 @@ import TemplateBuilderMode from '../components/builder/TemplateBuilderMode';
 import CanvasConfigMode from '../components/builder/CanvasConfigMode';
 import ExportProgressModal from '../components/modals/ExportProgressModal';
 import ExportPreviewModal from '../components/modals/ExportPreviewModal';
-import { buildTemplateJSON, buildTemplateMetaobjectFields, buildCanvasMetaobjectFields } from '../utils/exportTemplate';
+import { buildTemplateJSON, buildTemplateMetaobjectFields, buildCanvasMetaobjectFields, buildCanvasVariantFields } from '../utils/exportTemplate';
 import { callAdminProxy, uploadImageToShopify } from '../utils/shopifyAdmin';
+import { readSVGFile, validateSVGFile, parseSVGToElements } from '../utils/svgImporter';
 
 const MODE_TABS = [
   { id: 'template', label: 'Premade Template' },
@@ -402,6 +403,11 @@ export default function BuilderPage() {
   }]);
   const configuratorCanvasRef = useRef(null);
   const canvasInstanceRef     = useRef(null);
+  const svgImportInputRef     = useRef(null);
+
+  // SVG import state
+  const [importing,    setImporting]    = useState(false);
+  const [importError,  setImportError]  = useState(null);
 
   // ── B2: Load existing template/canvas for editing ─────────────────
   useEffect(() => {
@@ -515,6 +521,7 @@ export default function BuilderPage() {
       // Step 2: Upload preview image
       updateStep('image', 'active');
       let previewImageUrl = '';
+      let previewFileId   = '';
       try {
         const fc = canvasInstanceRef?.current;
         if (fc) {
@@ -524,14 +531,15 @@ export default function BuilderPage() {
           const filename = (templateName || 'template').replace(/\s+/g, '-').toLowerCase()
             + '-preview-' + Date.now() + '.png';
           if (!isDev) {
-            previewImageUrl = await uploadImageToShopify(blob, filename);
+            const uploaded = await uploadImageToShopify(blob, filename);
+            previewImageUrl = uploaded.cdnUrl  || '';
+            previewFileId   = uploaded.fileId  || '';
           } else {
             await sleep(600);
           }
         }
       } catch (imgErr) {
         console.warn('Preview image upload failed, continuing without it:', imgErr);
-        previewImageUrl = '';
       }
       updateStep('image', 'done');
 
@@ -562,15 +570,16 @@ export default function BuilderPage() {
 
       const fields = buildTemplateMetaobjectFields(
         {
-          name: templateName,
-          category: templateCategory,
-          canvasWidth: canvasConfig.width,
-          canvasHeight: canvasConfig.height,
+          name:            templateName,
+          category:        templateCategory,
+          canvasWidth:     canvasConfig.width,
+          canvasHeight:    canvasConfig.height,
           backgroundColor: canvasConfig.backgroundColor,
+          svgClipPath:     canvasConfig.svgPath || null,
           templateJSON,
+          variants:        variantsWithJSON,
         },
-        variantsWithJSON,
-        previewImageUrl
+        previewFileId
       );
 
       if (!isDev) {
@@ -592,6 +601,7 @@ export default function BuilderPage() {
           variants: variantsWithJSON,
           templateJSON,
           previewImageUrl,
+          previewFileId,
           createdAt: new Date().toISOString().split('T')[0],
         });
       } else {
@@ -610,6 +620,7 @@ export default function BuilderPage() {
           variants: variantsWithJSON,
           templateJSON,
           previewImageUrl,
+          previewFileId,
           createdAt: new Date().toISOString().split('T')[0],
         });
       }
@@ -646,18 +657,25 @@ export default function BuilderPage() {
       await sleep(400);
       updateStep('build', 'done');
 
-      // Step 2: Save metaobject
+      // Step 2: Save one design_canvas metaobject per variant
       updateStep('save', 'active');
-      let metaobjectId = null;
+      const savedVariants = [];
 
       if (!isDev) {
-        const metaobject = await callAdminProxy('createMetaobject', {
-          type: 'canvas_config',
-          fields,
-        });
-        metaobjectId = metaobject.id;
+        for (const variant of canvasVariants) {
+          const variantFields = buildCanvasVariantFields(
+            { name: canvasName, category: canvasCategory },
+            variant
+          );
+          const metaobject = await callAdminProxy('createMetaobject', {
+            type: 'design_canvas',
+            fields: variantFields,
+          });
+          savedVariants.push({ ...variant, metaobjectId: metaobject.id });
+        }
       } else {
         await sleep(500);
+        canvasVariants.forEach(v => savedVariants.push({ ...v, metaobjectId: null }));
       }
 
       addCanvas({
@@ -665,9 +683,9 @@ export default function BuilderPage() {
         name: canvasName,
         category: canvasCategory,
         status: isDev ? 'not_uploaded' : 'uploaded',
-        metaobjectId,
+        metaobjectId: savedVariants[0]?.metaobjectId || null,
         createdAt: new Date().toISOString().split('T')[0],
-        variants: canvasVariants,
+        variants: savedVariants,
       });
 
       updateStep('save', 'done');
@@ -689,6 +707,47 @@ export default function BuilderPage() {
   function handleExportRetry() {
     if (lastExportAction.current === 'template') runExportTemplate();
     else runSaveCanvas();
+  }
+
+  async function handleSVGImport(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Reset input so same file can be re-selected
+    e.target.value = '';
+
+    const validation = validateSVGFile(file);
+    if (!validation.valid) {
+      setImportError(validation.error);
+      return;
+    }
+
+    setImporting(true);
+    setImportError(null);
+
+    try {
+      const svgString = await readSVGFile(file);
+
+      const importedElements = await parseSVGToElements(
+        svgString,
+        canvasConfig.width  || 800,
+        canvasConfig.height || 600
+      );
+
+      if (importedElements.length === 0) {
+        setImportError('No elements found in this SVG file. Try simplifying it in Illustrator.');
+        return;
+      }
+
+      setElements(importedElements);
+      setMode('template');
+      console.info(`Imported ${importedElements.length} elements from SVG.`);
+
+    } catch (err) {
+      setImportError('Failed to parse SVG: ' + err.message);
+    } finally {
+      setImporting(false);
+    }
   }
 
   function handleExportTemplate() {
@@ -768,6 +827,24 @@ export default function BuilderPage() {
             </Button>
           ) : (
             <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button
+                  className="btn-import-svg"
+                  onClick={() => svgImportInputRef.current?.click()}
+                  disabled={importing}
+                  title="Import SVG file exported from Adobe Illustrator"
+                >
+                  {importing
+                    ? <><RefreshCw size={15} className="spin" /> Importing...</>
+                    : <><Upload size={15} /> Import SVG</>
+                  }
+                </button>
+                {importError && (
+                  <span className="import-error-inline">
+                    <AlertCircle size={13} /> {importError}
+                  </span>
+                )}
+              </div>
               <Button variant="outline" icon={Save} disabled>Save Draft</Button>
               <Button variant="primary" icon={Upload} onClick={handleExportTemplate} disabled={!setupDone}>
                 Export &amp; Save
@@ -798,6 +875,15 @@ export default function BuilderPage() {
           );
         })}
       </div>
+
+      {/* Hidden SVG import input */}
+      <input
+        ref={svgImportInputRef}
+        type="file"
+        accept=".svg,image/svg+xml"
+        style={{ display: 'none' }}
+        onChange={handleSVGImport}
+      />
 
       {/* Tab content */}
       {mode === 'template' ? (

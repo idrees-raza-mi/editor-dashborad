@@ -119,7 +119,7 @@ export default async function handler(req, res) {
 
     if (!cdnUrl) throw new Error('Shopify did not return a CDN URL after polling');
 
-    return res.json({ cdnUrl });
+    return res.json({ cdnUrl, fileId: file?.id || null });
   } catch (err) {
     console.error('Upload handler error:', err);
     return res.status(500).json({ error: err.message });

@@ -218,15 +218,45 @@ export default function BuilderCanvas({
         } else if (el.type === 'image' && el.src) {
           FabricImage.fromURL(el.src, { crossOrigin: 'anonymous' }).then(img => {
             img.id = el.id;
-            img.set({
-              left: el.left || 50,
-              top: el.top || 50,
-              scaleX: el.scaleX || 1,
-              scaleY: el.scaleY || 1,
-              opacity: el.opacity !== undefined ? el.opacity : 1,
-            });
+
+            const natW = img.width;
+            const natH = img.height;
+
+            // Auto-fit: scale down to 75% of canvas if image is larger than canvas
+            const maxW = fc.width  * 0.75;
+            const maxH = fc.height * 0.75;
+
+            let scaleX = el.scaleX || 1;
+            let scaleY = el.scaleY || 1;
+
+            const isDefaultScale = scaleX === 1 && scaleY === 1;
+            const isTooBig = natW > maxW || natH > maxH;
+
+            if (isDefaultScale && isTooBig) {
+              const fitScale = Math.min(maxW / natW, maxH / natH);
+              scaleX = fitScale;
+              scaleY = fitScale;
+            }
+
+            // Center on canvas when auto-fitting
+            const left = isDefaultScale && isTooBig
+              ? Math.round((fc.width  - natW * scaleX) / 2)
+              : (el.left || 50);
+            const top = isDefaultScale && isTooBig
+              ? Math.round((fc.height - natH * scaleY) / 2)
+              : (el.top  || 50);
+
+            img.set({ left, top, scaleX, scaleY, opacity: el.opacity !== undefined ? el.opacity : 1 });
             fc.add(img);
+            fc.setActiveObject(img);
             fc.renderAll();
+
+            // Sync the computed scale + position back to React state
+            if (isDefaultScale && isTooBig) {
+              onElementResized(img.id, scaleX, scaleY,
+                Math.round(img.getScaledWidth()), Math.round(img.getScaledHeight()));
+              onElementMoved(img.id, left, top);
+            }
           });
         }
       }

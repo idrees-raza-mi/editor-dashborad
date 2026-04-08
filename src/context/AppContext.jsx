@@ -3,9 +3,22 @@ import { callAdminProxy } from '../utils/shopifyAdmin';
 
 const AppContext = createContext(null);
 
+// Bump this version whenever stored data shape changes to auto-clear stale cache
+const STORAGE_VERSION = '2';
+
+function clearStaleStorage() {
+  const stored = localStorage.getItem('psadmin-version');
+  if (stored !== STORAGE_VERSION) {
+    localStorage.removeItem('psadmin-templates');
+    localStorage.removeItem('psadmin-canvases');
+    localStorage.setItem('psadmin-version', STORAGE_VERSION);
+  }
+}
+
 export function AppProvider({ children }) {
   const [templates, setTemplates] = useState(() => {
     try {
+      clearStaleStorage();
       const saved = localStorage.getItem('psadmin-templates');
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }

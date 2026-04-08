@@ -3,6 +3,9 @@
     "api/shopify.js": { "maxDuration": 30 },
     "api/upload.js":  { "maxDuration": 30 }
   },
+  "rewrites": [
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ],
   "headers": [
     {
       "source": "/api/(.*)",

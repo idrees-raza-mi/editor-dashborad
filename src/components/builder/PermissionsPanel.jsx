@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Lock, Move, Maximize, RotateCw, Type, ALargeSmall, Palette, Bold, Italic, ImageIcon, Trash2, Wand2 } from 'lucide-react';
 import { removeBackground } from '../../utils/removeBackground';
 
@@ -86,6 +86,39 @@ const FONT_LIST = [
 ];
 
 const LOCAL_FONT_VALUES = FONT_LIST.filter(f => f.source === 'local').map(f => f.value);
+
+function NumericInput({ value, onChange, min = 0, max, style, className }) {
+  const [local, setLocal] = useState(String(value ?? ''));
+  const prevValue = useRef(value);
+
+  useEffect(() => {
+    if (value !== prevValue.current) {
+      prevValue.current = value;
+      setLocal(String(value ?? ''));
+    }
+  }, [value]);
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={local}
+      style={style}
+      className={className}
+      onChange={e => {
+        const raw = e.target.value;
+        if (/^[0-9.]*$/.test(raw)) setLocal(raw);
+      }}
+      onBlur={() => {
+        let n = parseFloat(local);
+        if (isNaN(n) || n < min) n = min;
+        if (max !== undefined && n > max) n = max;
+        setLocal(String(n));
+        onChange(n);
+      }}
+    />
+  );
+}
 
 function PillToggle({ options, value, onChange }) {
   return (
@@ -268,10 +301,10 @@ export default function PermissionsPanel({ element, onChange, onReplaceImage, ca
             <div className="style-row" style={{ marginBottom: 10 }}>
               <div className="style-field" style={{ marginBottom: 0 }}>
                 <label>Size</label>
-                <input
-                  type="number" min={8} max={200}
+                <NumericInput
+                  min={8} max={200}
                   value={element.fontSize || 32}
-                  onChange={e => onChange({ ...element, fontSize: Number(e.target.value) })}
+                  onChange={n => onChange({ ...element, fontSize: n })}
                 />
               </div>
               <div className="style-field" style={{ marginBottom: 0 }}>
@@ -348,8 +381,8 @@ export default function PermissionsPanel({ element, onChange, onReplaceImage, ca
                 <div className="style-row-color">
                   <input type="color" value={element.stroke || '#1C1A17'} onChange={e => onChange({ ...element, stroke: e.target.value })} />
                   <span style={{ marginRight: 8 }}>{element.stroke || '#1C1A17'}</span>
-                  <input type="number" min={1} max={20} value={element.strokeWidth || 3}
-                    onChange={e => onChange({ ...element, strokeWidth: Number(e.target.value) })}
+                  <NumericInput min={1} max={20} value={element.strokeWidth || 3}
+                    onChange={n => onChange({ ...element, strokeWidth: n })}
                     style={{ width: 48, border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '3px 6px', fontSize: 12 }}
                   />
                   <span style={{ fontSize: 11, color: 'var(--light)' }}>px</span>
@@ -359,16 +392,16 @@ export default function PermissionsPanel({ element, onChange, onReplaceImage, ca
             <div className="style-row">
               <div className="style-field" style={{ marginBottom: 0 }}>
                 <label>Width</label>
-                <input type="number" min={10} value={element.width || 150} onChange={e => onChange({ ...element, width: Number(e.target.value) })} />
+                <NumericInput min={10} value={element.width || 150} onChange={n => onChange({ ...element, width: n })} />
               </div>
               <div className="style-field" style={{ marginBottom: 0 }}>
                 <label>Height</label>
-                <input type="number" min={10} value={element.height || 80} onChange={e => onChange({ ...element, height: Number(e.target.value) })} />
+                <NumericInput min={10} value={element.height || 80} onChange={n => onChange({ ...element, height: n })} />
               </div>
             </div>
             <div className="style-field" style={{ marginTop: 8 }}>
               <label>Border Radius (0–50)</label>
-              <input type="number" min={0} max={50} value={element.rx || 0} onChange={e => onChange({ ...element, rx: Number(e.target.value), ry: Number(e.target.value) })} />
+              <NumericInput min={0} max={50} value={element.rx || 0} onChange={n => onChange({ ...element, rx: n, ry: n })} />
             </div>
           </>
         )}
