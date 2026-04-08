@@ -150,7 +150,7 @@ export default function TemplateCard({ template, onPreview, onEdit, onUpload }) 
         transition: 'box-shadow 0.15s',
       }}
     >
-      {/* Thumbnail — renders the actual design */}
+      {/* Thumbnail — prefers Shopify preview image, falls back to rendered */}
       <div style={{
         height: 160,
         background: template.backgroundColor || '#FAF7F2',
@@ -160,7 +160,13 @@ export default function TemplateCard({ template, onPreview, onEdit, onUpload }) 
         overflow: 'hidden',
         position: 'relative',
       }}>
-        {template.templateJSON ? (
+        {template.previewImageUrl ? (
+          <img 
+            src={template.previewImageUrl} 
+            alt={template.name}
+            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+          />
+        ) : template.templateJSON ? (
           <TemplateThumbnail
             templateJSON={template.templateJSON}
             backgroundColor={template.backgroundColor}

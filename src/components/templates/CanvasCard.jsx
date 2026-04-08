@@ -94,7 +94,15 @@ export default function CanvasCard({ canvas, onPreview, onEdit, onUpload }) {
     >
       {/* Shape Preview */}
       <div style={{ height: 140, overflow: 'hidden', position: 'relative' }}>
-        <CanvasThumbnail variant={activeVariant} />
+        {canvas.previewImageUrl ? (
+          <img 
+            src={canvas.previewImageUrl} 
+            alt={canvas.name}
+            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+          />
+        ) : (
+          <CanvasThumbnail variant={activeVariant} />
+        )}
 
         {/* Variant switcher — shown when multiple variants exist */}
         {canvas.variants.length > 1 && (

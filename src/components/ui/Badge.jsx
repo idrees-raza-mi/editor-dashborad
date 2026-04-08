@@ -1,5 +1,5 @@
 export default function Badge({ status }) {
-  const isUploaded = status === 'uploaded';
+  const isUploaded = status === 'uploaded' || status === 'published';
 
   return (
     <span style={{
@@ -20,7 +20,7 @@ export default function Badge({ status }) {
         background: isUploaded ? 'var(--green-tx)' : 'var(--light)',
         flexShrink: 0,
       }} />
-      {isUploaded ? 'Uploaded' : 'Not Uploaded'}
+      {status === 'published' ? 'Published' : isUploaded ? 'Uploaded' : 'Not Uploaded'}
     </span>
   );
 }

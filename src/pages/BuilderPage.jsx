@@ -899,6 +899,7 @@ export default function BuilderPage() {
       metaobjectId: null,
       createdAt: new Date().toISOString().split('T')[0],
       variants: canvasVariants,
+      previewImageUrl: result.imageUrl || null,
     });
 
     return result;

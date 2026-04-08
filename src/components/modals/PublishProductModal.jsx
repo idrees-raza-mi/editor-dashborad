@@ -77,7 +77,9 @@ export default function PublishProductModal({
           </div>
 
           <div className="publish-modal-body" style={{ textAlign: 'center', padding: '40px 32px' }}>
-            <CheckCircle size={52} color="var(--green-tx)" style={{ marginBottom: 16 }} />
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+              <CheckCircle size={52} color="var(--green-tx)" />
+            </div>
             <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: 22, marginBottom: 6 }}>
               Product Created!
             </h3>

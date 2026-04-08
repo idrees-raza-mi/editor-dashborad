@@ -338,6 +338,32 @@ export default async function handler(req, res) {
         return res.json(result.node);
       }
 
+      case 'listProducts': {
+        const query = `
+          query listProducts($first: Int!) {
+            products(first: $first) {
+              edges {
+                node {
+                  id
+                  handle
+                  title
+                  status
+                  createdAt
+                  images(first: 1) {
+                    edges { node { url } }
+                  }
+                  metafields(first: 10) {
+                    edges { node { key namespace value } }
+                  }
+                }
+              }
+            }
+          }
+        `;
+        const result = await shopifyRequest(query, { first: data.first || 50 });
+        return res.json(result.products);
+      }
+
       default:
         return res.status(400).json({ error: 'Unknown action: ' + action });
     }

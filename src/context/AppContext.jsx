@@ -40,37 +40,68 @@ export function AppProvider({ children }) {
     localStorage.setItem('psadmin-canvases', JSON.stringify(canvases));
   }, [canvases]);
 
-  // Load real data from Shopify on mount (only if env vars are configured)
+  // Load products from Shopify on mount (published templates/canvases via metafields)
   useEffect(() => {
     if (!import.meta.env.VITE_SHOPIFY_STORE || !import.meta.env.VITE_SHOPIFY_ADMIN_TOKEN) return;
     async function loadFromShopify() {
       try {
-        const result = await callAdminProxy('listMetaobjects', { type: 'design_template', first: 50 });
-        if (result && result.nodes) {
-          const shopifyTemplates = result.nodes.map(node => {
-            const fields = {};
-            node.fields.forEach(f => { fields[f.key] = f.value; });
-            return {
-              id:              node.id,
-              name:            fields.name || 'Untitled',
-              category:        fields.category || '',
-              canvasWidth:     parseInt(fields.canvas_width)  || 800,
-              canvasHeight:    parseInt(fields.canvas_height) || 600,
-              backgroundColor: fields.background_color || '#ffffff',
-              templateJSON:    fields.template_json ? JSON.parse(fields.template_json) : null,
-              previewImageUrl: fields.preview_image_url || null,
-              variants:        fields.variants_json ? JSON.parse(fields.variants_json) : [],
-              status:          'uploaded',
-              metaobjectId:    node.id,
-              createdAt:       fields.created_at || '',
-              elements:        0,
-              editableFields:  0,
-            };
-          });
-          setTemplates(shopifyTemplates);
+        const result = await callAdminProxy('listProducts', { first: 50 });
+        if (result?.edges) {
+          const templates = [];
+          const canvases = [];
+
+          for (const { node: product } of result.edges) {
+            const metafields = product.metafields?.edges || [];
+            let designType = null;
+            let templateJSON = null;
+
+            for (const { node: mf } of metafields) {
+              if (mf.key === 'design_type') designType = mf.value;
+              if (mf.key === 'template_json' && mf.value) {
+                try { templateJSON = JSON.parse(mf.value); } catch {}
+              }
+            }
+
+            const imageUrl = product.images?.edges[0]?.node?.url || null;
+
+            if (designType === 'template' || (templateJSON && templateJSON.objects)) {
+              templates.push({
+                id:              product.id,
+                name:            product.title,
+                category:        '',
+                canvasWidth:     templateJSON?.canvasWidth  || 800,
+                canvasHeight:    templateJSON?.canvasHeight || 600,
+                backgroundColor: templateJSON?.background || '#ffffff',
+                templateJSON:    templateJSON,
+                previewImageUrl: imageUrl,
+                variants:        templateJSON?.variants || [],
+                status:          'published',
+                productId:       product.id,
+                productHandle:   product.handle,
+                createdAt:        product.createdAt?.split('T')[0] || '',
+              });
+            }
+
+            if (designType === 'canvas') {
+              canvases.push({
+                id:              product.id,
+                name:            product.title,
+                category:        '',
+                status:          'published',
+                productId:       product.id,
+                productHandle:   product.handle,
+                createdAt:       product.createdAt?.split('T')[0] || '',
+                variants:        templateJSON?.variants || [],
+                previewImageUrl: imageUrl,
+              });
+            }
+          }
+
+          setTemplates(templates);
+          setCanvases(canvases);
         }
       } catch (err) {
-        console.warn('Could not load from Shopify, using local state:', err);
+        console.warn('Could not load from Shopify:', err);
       }
     }
     loadFromShopify();

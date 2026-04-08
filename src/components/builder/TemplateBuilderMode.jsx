@@ -166,19 +166,24 @@ export default function TemplateBuilderMode({
 
   // ── Add element ─────────────────────────────────────────────────
   function handleAddElement(type) {
+    const cw = canvasConfig.width || 600;
+    const ch = canvasConfig.height || 600;
+    const cx = cw / 2 - 50;
+    const cy = ch / 2 - 30;
+
     const newEl = {
       id: 'el-' + Date.now(),
       type,
       name: getElementName(type, elements),
-      left: 60,
-      top: 60,
+      left: cx,
+      top: cy,
       label: '',
       required: false,
       permissions: {
         content: 'fixed',
-        position: 'locked',
-        size: 'locked',
-        rotation: 'locked',
+        position: 'dynamic',
+        size: 'dynamic',
+        rotation: 'dynamic',
         font_family: 'locked',
         font_size: 'locked',
         font_color: 'locked',
@@ -188,20 +193,22 @@ export default function TemplateBuilderMode({
     if (type === 'text') {
       newEl.text = 'New Text';
       newEl.fontFamily = 'Playfair Display';
-      newEl.fontSize = 36;
+      newEl.fontSize = 48;
       newEl.fill = '#1C1A17';
       newEl.fontWeight = 'normal';
       newEl.fontStyle = 'normal';
     }
     if (type === 'shape') {
-      newEl.width = 160;
-      newEl.height = 90;
+      newEl.width = 200;
+      newEl.height = 120;
       newEl.fill = '#E8E0D4';
       newEl.rx = 0;
       newEl.ry = 0;
     }
     if (type === 'background') {
       newEl.fill = canvasConfig.backgroundColor;
+      newEl.left = 0;
+      newEl.top = 0;
     }
     if (type === 'image') {
       triggerImageUpload(newEl);
@@ -337,10 +344,6 @@ export default function TemplateBuilderMode({
         <span style={{ fontSize: 13, color: 'var(--mid)' }}>
           Canvas: {canvasConfig.width} × {canvasConfig.height}px
         </span>
-        <div style={{ display: 'flex', gap: 4 }}>
-          <Button variant="ghost" icon={Undo2} size="sm" onClick={undo}>Undo</Button>
-          <Button variant="ghost" icon={Redo2} size="sm" onClick={redo}>Redo</Button>
-        </div>
       </div>
 
       {/* Three-column layout */}

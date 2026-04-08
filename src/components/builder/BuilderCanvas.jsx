@@ -172,15 +172,18 @@ export default function BuilderCanvas({
         existing.setCoords();
       } else {
         if (el.type === 'text') {
+          const cw = fc.width || 600;
           const obj = new IText(el.text || 'New Text', {
             id: el.id,
-            left: el.left || 50,
-            top: el.top || 50,
-            fontSize: el.fontSize || 32,
+            left: el.left || cw / 2,
+            top: el.top || 100,
+            fontSize: el.fontSize || 48,
             fontFamily: el.fontFamily || 'Playfair Display',
             fill: el.fill || '#1C1A17',
             fontWeight: el.fontWeight || 'normal',
             fontStyle: el.fontStyle || 'normal',
+            wordWrap: true,
+            wrapperWidth: cw - 40,
           });
           fc.add(obj);
         } else if (el.type === 'shape') {
