@@ -112,9 +112,9 @@
     width: 100% !important;
   }
 
-  /* Builder 3-col: allow horizontal scroll so panels stay usable */
+  /* Builder 3-col: prevent horizontal scroll */
   .builder-three-col {
-    overflow-x: auto;
+    overflow-x: hidden;
     min-width: 680px;
   }
 }

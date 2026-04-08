@@ -74,6 +74,32 @@ export default function BuilderCanvas({
       onElementTextChanged(obj.id, obj.text);
     });
 
+    fc.on('text:editing:entered', () => {
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+    });
+
+    fc.on('text:editing:exited', () => {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    });
+
+    // Prevent scroll jump on selection
+    fc.on('selection:created', () => {
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+    });
+    
+    fc.on('selection:updated', () => {
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+    });
+    
+    fc.on('selection:cleared', () => {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    });
+
     const handleKeyDown = (e) => {
       if (e.key === 'Delete' || e.key === 'Backspace') {
         const tag = e.target.tagName.toLowerCase();
@@ -357,6 +383,9 @@ export default function BuilderCanvas({
             transform: `scale(${displayScale})`,
             transformOrigin: 'top left',
             position: 'absolute',
+            overflow: 'hidden',
+            width: effectiveWidth,
+            height: effectiveHeight,
           }}>
             <canvas ref={canvasElRef} />
           </div>
