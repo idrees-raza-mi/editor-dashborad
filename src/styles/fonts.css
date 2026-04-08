@@ -1,0 +1,242 @@
+/* Self-hosted fonts — place woff2 files in /public/fonts/ */
+
+@font-face {
+  font-family: 'Graphik Web';
+  src: url('/fonts/Graphik-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Sandrina';
+  src: url('/fonts/Sandrina-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Aspire Pasque Serif';
+  src: url('/fonts/AspirePasque-Serif.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Aspire Pasque Script';
+  src: url('/fonts/AspirePasque-Script.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Amalfi Coast';
+  src: url('/fonts/AmalfiCoast-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Darline Serif';
+  src: url('/fonts/Darline-Serif.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Darline Script';
+  src: url('/fonts/Darline-Script.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Buka Bird';
+  src: url('/fonts/BukaBird-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Safira March Light';
+  src: url('/fonts/SafiraMarch-Light.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Broadway';
+  src: url('/fonts/Broadway-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Wild Dream';
+  src: url('/fonts/WildDream-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Bhutan';
+  src: url('/fonts/Bhutan-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Garden Sans';
+  src: url('/fonts/GardenSans-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Gabriel Weiss Friends Font';
+  src: url('/fonts/GabrielWeiss-Friends.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Beauty Dina';
+  src: url('/fonts/BeautyDina-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Minecrafter';
+  src: url('/fonts/Minecrafter-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Landmark';
+  src: url('/fonts/Landmark-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Gulya Script';
+  src: url('/fonts/GulyaScript-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Evallia';
+  src: url('/fonts/Evallia-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Funkhouse';
+  src: url('/fonts/Funkhouse-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Cooper Std Black';
+  src: url('/fonts/CooperStd-Black.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Candy Shop';
+  src: url('/fonts/CandyShop-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Brown Sugar';
+  src: url('/fonts/BrownSugar-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Mattosa Script';
+  src: url('/fonts/MattosaScript-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Butter Mellow';
+  src: url('/fonts/ButterMellow-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Babes & Bridal';
+  src: url('/fonts/BabesBridal-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Arrafah';
+  src: url('/fonts/Arrafah-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Anggelica Merona';
+  src: url('/fonts/AnggelicaMerona-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Harry Potter';
+  src: url('/fonts/HarryPotter-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'GGEyesome Script';
+  src: url('/fonts/GGEyesome-Script.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Magneto';
+  src: url('/fonts/Magneto-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Frankfurter';
+  src: url('/fonts/Frankfurter-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'SB-Bold';
+  src: url('/fonts/SB-Bold.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Elyn Alina';
+  src: url('/fonts/ElynAlina-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Charlemagne';
+  src: url('/fonts/Charlemagne-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'GROBOLD';
+  src: url('/fonts/GROBOLD-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Baleria';
+  src: url('/fonts/Baleria-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Behavior Indihome Regular';
+  src: url('/fonts/BehaviorIndihome-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Baropetha Signature';
+  src: url('/fonts/BaropethaSignature-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Amsterdam';
+  src: url('/fonts/Amsterdam-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Retro Signature';
+  src: url('/fonts/RetroSignature-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Anything Script';
+  src: url('/fonts/AnythingScript-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Northwell';
+  src: url('/fonts/Northwell-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Qanelas Thin';
+  src: url('/fonts/Qanelas-Thin.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Father Farmhouse Sans';
+  src: url('/fonts/FatherFarmhouse-Sans.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Father Farmhouse Script';
+  src: url('/fonts/FatherFarmhouse-Script.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Wrexham';
+  src: url('/fonts/Wrexham-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: '5Aughles ia';
+  src: url('/fonts/5Aughles-Regular.woff2') format('woff2');
+  font-weight: normal; font-style: normal; font-display: swap;
+}

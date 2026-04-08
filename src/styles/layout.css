@@ -1,0 +1,149 @@
+.page-content {
+  /* Fluid — fills available width. Padding scales with screen size. */
+  padding: 32px 36px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 28px;
+}
+
+.page-title {
+  font-family: var(--font-heading);
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--black);
+}
+
+.page-subtitle {
+  font-size: 13px;
+  color: var(--mid);
+  margin-top: 4px;
+}
+
+/* ── Responsive: Very large screens (≥ 1920px) ──────────────────── */
+@media (min-width: 1920px) {
+  .page-content {
+    padding: 40px 64px;
+  }
+  .page-title {
+    font-size: 30px;
+  }
+  /* Stats cards — still 4 columns, just wider */
+  .stats-grid {
+    gap: 20px !important;
+  }
+}
+
+/* ── Responsive: Large screens (1440px – 1920px) ───────────────── */
+@media (min-width: 1440px) and (max-width: 1919px) {
+  .page-content {
+    padding: 36px 48px;
+  }
+}
+
+/* ── Responsive: Standard laptops (1280px – 1440px) ────────────── */
+@media (min-width: 1280px) and (max-width: 1439px) {
+  .page-content {
+    padding: 28px 36px;
+  }
+}
+
+/* ── Responsive: Small laptop (≤ 1280px) ───────────────────────── */
+@media (max-width: 1280px) {
+  .page-content {
+    padding: 24px 28px;
+  }
+  /* Stats drop to 2-col when space is tight */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* ── Responsive: Tablet / small laptop (≤ 1024px) ──────────────── */
+@media (max-width: 1024px) {
+  /* Sidebar collapses to icon-only strip */
+  .app-sidebar {
+    width: 60px !important;
+  }
+  .app-sidebar .sidebar-brand {
+    display: none;
+  }
+  .app-sidebar .sidebar-label {
+    display: none;
+  }
+  .app-sidebar .sidebar-footer {
+    display: none;
+  }
+  .app-sidebar .sidebar-nav-link {
+    padding: 14px !important;
+    justify-content: center !important;
+    gap: 0 !important;
+  }
+
+  /* Main content shifts left */
+  .app-main {
+    margin-left: 60px !important;
+  }
+
+  .page-content {
+    padding: 20px 18px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Page header wraps on narrow screens */
+  .page-header {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  /* Canvas config layout stacks vertically */
+  .canvas-config-layout {
+    flex-direction: column;
+  }
+  .canvas-config-left {
+    width: 100% !important;
+  }
+
+  /* Builder 3-col: allow horizontal scroll so panels stay usable */
+  .builder-three-col {
+    overflow-x: auto;
+    min-width: 680px;
+  }
+}
+
+/* ── Responsive: Small tablet / portrait (≤ 768px) ─────────────── */
+@media (max-width: 768px) {
+  .page-content {
+    padding: 16px 12px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  .page-title {
+    font-size: 20px;
+  }
+
+  .app-sidebar {
+    width: 52px !important;
+  }
+  .app-main {
+    margin-left: 52px !important;
+  }
+
+  /* Builder wraps in a scroll container */
+  .builder-three-col {
+    min-width: 620px;
+    height: 460px !important;
+  }
+}

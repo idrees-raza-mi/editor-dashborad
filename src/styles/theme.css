@@ -1,0 +1,35 @@
+:root {
+  /* Base colors */
+  --cream:    #FAF7F2;
+  --cream2:   #F2EDE4;
+  --cream3:   #E8E0D4;
+  --black:    #1C1A17;
+  --black2:   #2E2B26;
+  --mid:      #6B6458;
+  --light:    #A89E92;
+  --gold:     #B8965A;
+  --gold2:    #D4AC6E;
+  --border:   #DDD5C8;
+  --white:    #FFFFFF;
+
+  /* Status colors */
+  --green-bg: #EAF4EC;
+  --green-tx: #2D7A3A;
+  --blue-bg:  #E8F0FC;
+  --blue-tx:  #2355A0;
+  --amber-bg: #FDF3E3;
+  --amber-tx: #9A6A10;
+  --red-bg:   #FDECEA;
+  --red-tx:   #B03030;
+
+  /* Typography */
+  --font-heading: 'Playfair Display', Georgia, serif;
+  --font-body:    'Jost', system-ui, sans-serif;
+  --font-mono:    'Courier New', Courier, monospace;
+
+  /* Spacing */
+  --radius:    8px;
+  --radius-sm: 4px;
+  --shadow:    0 4px 16px rgba(0,0,0,0.07);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.05);
+}
