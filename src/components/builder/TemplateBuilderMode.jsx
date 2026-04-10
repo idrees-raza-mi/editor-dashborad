@@ -313,26 +313,27 @@ export default function TemplateBuilderMode({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvasConfig.width, canvasConfig.height]);
 
-  // ── Variant switch: scale element positions proportionally ────────
+  // ── Variant switch: clear selection + sync canvasConfig dimensions ──
   useEffect(() => {
     const prevId = prevVariantIdRef.current;
     if (prevId === activeVariantId) return;
-    const prevVariant = variants.find(v => v.id === prevId);
-    const newVariant  = variants.find(v => v.id === activeVariantId);
     prevVariantIdRef.current = activeVariantId;
-    if (!prevVariant || !newVariant) return;
-    const sx = prevVariant.canvasWidth  > 0 ? newVariant.canvasWidth  / prevVariant.canvasWidth  : 1;
-    const sy = prevVariant.canvasHeight > 0 ? newVariant.canvasHeight / prevVariant.canvasHeight : 1;
-    setElements(prev => prev.map(el => ({
-      ...el,
-      left:     el.left  * sx,
-      top:      el.top   * sy,
-      width:    el.width  ? el.width  * sx : el.width,
-      height:   el.height ? el.height * sy : el.height,
-      fontSize: el.fontSize ? Math.round(el.fontSize * Math.min(sx, sy)) : el.fontSize,
-    })));
-    if (onCanvasConfigChange) {
-      onCanvasConfigChange(prev => ({ ...prev, width: newVariant.canvasWidth, height: newVariant.canvasHeight }));
+
+    // Clear selected element so PermissionsPanel resets to empty
+    setSelectedElementId(null);
+    if (canvasRef.current) {
+      canvasRef.current.discardActiveObject();
+      canvasRef.current.renderAll();
+    }
+
+    // Sync canvasConfig dimensions to the newly active variant
+    const newVariant = variants.find(v => v.id === activeVariantId);
+    if (newVariant && onCanvasConfigChange) {
+      onCanvasConfigChange(prev => ({
+        ...prev,
+        width:  newVariant.canvasWidth,
+        height: newVariant.canvasHeight,
+      }));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeVariantId]);

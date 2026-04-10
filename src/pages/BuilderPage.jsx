@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, Upload, ChevronRight, LayoutTemplate, Layers, RefreshCw, AlertCircle, Store } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
@@ -9,7 +9,7 @@ import CanvasConfigMode from '../components/builder/CanvasConfigMode';
 import ExportProgressModal from '../components/modals/ExportProgressModal';
 import ExportPreviewModal from '../components/modals/ExportPreviewModal';
 import PublishProductModal from '../components/modals/PublishProductModal';
-import { buildTemplateJSON, buildTemplateMetaobjectFields, buildCanvasMetaobjectFields, buildCanvasVariantFields } from '../utils/exportTemplate';
+import { buildTemplateJSON, buildTemplateMetaobjectFields, buildCanvasMetaobjectFields, buildCanvasVariantFields, buildAllVariantsJSON } from '../utils/exportTemplate';
 import { callAdminProxy, uploadImageToShopify } from '../utils/shopifyAdmin';
 import { publishTemplateAsProduct } from '../utils/shopifyProduct';
 import { hasUnsavedBlobUrls } from '../utils/sanitizeTemplateJSON';
@@ -372,7 +372,6 @@ export default function BuilderPage() {
   const [setupDone, setSetupDone] = useState(false);
   const [canvasConfig, setCanvasConfig] = useState({ width: 600, height: 500, backgroundColor: '#FAF7F2' });
 
-  const [elements, setElements]               = useState([]);
   const [selectedElementId, setSelectedElementId] = useState(null);
 
   // Template state
@@ -380,6 +379,26 @@ export default function BuilderPage() {
     { id: 'v1', label: '', price: '', canvasWidth: 600, canvasHeight: 500 },
   ]);
   const [activeVariantId, setActiveVariantId] = useState('v1');
+
+  // ── Per-variant element storage ──────────────────────────────────
+  // Each variant gets its own independent elements array.
+  // Shape: { [variantId]: elements[] }
+  // IMPORTANT: declared after activeVariantId to avoid Temporal Dead Zone.
+  const [variantElements, setVariantElements] = useState({ 'v1': [] });
+
+  // Derived: the active variant's elements (stable reference when unchanged)
+  const elements = variantElements[activeVariantId] || variantElements['v1'] || [];
+
+  // Setter — always writes into the currently active variant's slot
+  const setElements = useCallback((updaterOrValue) => {
+    setVariantElements(prev => {
+      const current = prev[activeVariantId] || [];
+      const next = typeof updaterOrValue === 'function'
+        ? updaterOrValue(current)
+        : updaterOrValue;
+      return { ...prev, [activeVariantId]: next };
+    });
+  }, [activeVariantId]);
   const [templateName, setTemplateName]       = useState('');
   const [templateCategory, setTemplateCategory] = useState('Birthday');
 
@@ -430,8 +449,10 @@ export default function BuilderPage() {
           name:            existing.name,
         });
         if (tj.component_permissions) setComponentSettings(tj.component_permissions);
+        // Restore elements and wire them into the correct variant slot
+        let restored = [];
         if (tj.objects) {
-          const restored = tj.objects.map(obj => ({
+          restored = tj.objects.map(obj => ({
             id:           obj.id || ('el-' + Date.now() + Math.random()),
             type:         obj.element_type || 'text',
             name:         obj.label || obj.element_type || 'Element',
@@ -459,13 +480,17 @@ export default function BuilderPage() {
               font_family: 'locked', font_size: 'locked', font_color: 'locked',
             },
           }));
-          setElements(restored);
         }
         setTemplateName(existing.name || '');
         setTemplateCategory(existing.category || 'Birthday');
         if (existing.variants?.length > 0) {
+          const firstVarId = existing.variants[0].id;
+          // Write restored elements directly into the first variant's slot
+          setVariantElements({ [firstVarId]: restored });
           setVariants(existing.variants);
-          setActiveVariantId(existing.variants[0].id);
+          setActiveVariantId(firstVarId);
+        } else if (restored.length > 0) {
+          setVariantElements({ 'v1': restored });
         }
         setSetupDone(true);
         setMode('template');
@@ -519,6 +544,78 @@ export default function BuilderPage() {
     setExportSteps(prev => prev.map(s => s.id === stepId ? { ...s, status } : s));
   }
 
+  // ── Variant tab switch — saves current variant, loads next ───────
+  // If the target variant has no elements yet, seeds a proportionally
+  // scaled copy of the current variant's elements as a starting point.
+  function handleVariantChange(newVariantId) {
+    if (newVariantId === activeVariantId) return;
+
+    const prevVariant = variants.find(v => v.id === activeVariantId);
+    const newVariant  = variants.find(v => v.id === newVariantId);
+
+    // Seed the new variant with a scaled copy if it's empty
+    if (newVariant && prevVariant) {
+      setVariantElements(prev => {
+        if (prev[newVariantId] && prev[newVariantId].length > 0) return prev;
+        const sx = prevVariant.canvasWidth  > 0 ? newVariant.canvasWidth  / prevVariant.canvasWidth  : 1;
+        const sy = prevVariant.canvasHeight > 0 ? newVariant.canvasHeight / prevVariant.canvasHeight : 1;
+        const seeded = (prev[activeVariantId] || []).map(el => ({
+          ...el,
+          id:       el.id + '-' + newVariantId,
+          left:     (el.left  || 0) * sx,
+          top:      (el.top   || 0) * sy,
+          width:    el.width  ? el.width  * sx : el.width,
+          height:   el.height ? el.height * sy : el.height,
+          fontSize: el.fontSize ? Math.round(el.fontSize * Math.min(sx, sy)) : el.fontSize,
+        }));
+        return { ...prev, [newVariantId]: seeded };
+      });
+    }
+
+    setActiveVariantId(newVariantId);
+  }
+
+  // ── Variants list change (add / remove from VariantsEditor) ──────
+  function handleVariantsChange(newVariants) {
+    const oldIds        = new Set(variants.map(v => v.id));
+    const addedVariants = newVariants.filter(v => !oldIds.has(v.id));
+    const removedIds    = variants.filter(v => !newVariants.some(nv => nv.id === v.id)).map(v => v.id);
+
+    setVariants(newVariants);
+
+    // Remove element snapshots for deleted variants
+    if (removedIds.length > 0) {
+      setVariantElements(prev => {
+        const next = { ...prev };
+        removedIds.forEach(id => { delete next[id]; });
+        return next;
+      });
+    }
+
+    // Seed element snapshots for newly added variants
+    if (addedVariants.length > 0) {
+      const srcVariant = variants.find(v => v.id === activeVariantId) || variants[0];
+      setVariantElements(prev => {
+        const srcEls = prev[srcVariant?.id] || [];
+        const next   = { ...prev };
+        addedVariants.forEach(nv => {
+          const sx = srcVariant?.canvasWidth  > 0 ? (nv.canvasWidth  || srcVariant.canvasWidth)  / srcVariant.canvasWidth  : 1;
+          const sy = srcVariant?.canvasHeight > 0 ? (nv.canvasHeight || srcVariant.canvasHeight) / srcVariant.canvasHeight : 1;
+          next[nv.id] = srcEls.map(el => ({
+            ...el,
+            id:       el.id + '-' + nv.id,
+            left:     (el.left  || 0) * sx,
+            top:      (el.top   || 0) * sy,
+            width:    el.width  ? el.width  * sx : el.width,
+            height:   el.height ? el.height * sy : el.height,
+            fontSize: el.fontSize ? Math.round(el.fontSize * Math.min(sx, sy)) : el.fontSize,
+          }));
+        });
+        return next;
+      });
+    }
+  }
+
   function handleSetupComplete({ productName, canvasConfig: cfg }) {
     setTemplateName(productName);
     setCanvasConfig(cfg);
@@ -569,27 +666,8 @@ export default function BuilderPage() {
       // Step 3: Save metaobject
       updateStep('save', 'active');
 
-      // Build per-variant templateJSON snapshots (scaled from active variant dimensions)
-      const activeVariantObj = variants.find(v => v.id === activeVariantId) || variants[0];
-      const baseW = activeVariantObj?.canvasWidth  || canvasConfig.width;
-      const baseH = activeVariantObj?.canvasHeight || canvasConfig.height;
-      const variantsWithJSON = variants.map(v => {
-        if (v.id === (activeVariantObj?.id)) {
-          return { ...v, templateJSON };
-        }
-        const sx = baseW > 0 ? v.canvasWidth  / baseW : 1;
-        const sy = baseH > 0 ? v.canvasHeight / baseH : 1;
-        const scaledEls = elements.map(el => ({
-          ...el,
-          left:     el.left  * sx,
-          top:      el.top   * sy,
-          width:    el.width  ? el.width  * sx : el.width,
-          height:   el.height ? el.height * sy : el.height,
-          fontSize: el.fontSize ? Math.round(el.fontSize * Math.min(sx, sy)) : el.fontSize,
-        }));
-        const variantConfig = { ...canvasConfig, width: v.canvasWidth, height: v.canvasHeight };
-        return { ...v, templateJSON: buildTemplateJSON(scaledEls, variantConfig, componentSettings) };
-      });
+      // Build independent per-variant JSON from each variant's own elements snapshot
+      const variantsWithJSON = buildAllVariantsJSON(variantElements, variants, canvasConfig, componentSettings);
 
       const fields = buildTemplateMetaobjectFields(
         {
@@ -825,7 +903,20 @@ export default function BuilderPage() {
   async function handlePublish(productDetails, onProgress) {
     const { productTitle, productDescription, selectedVariants } = productDetails;
 
-    const templateJSON = buildTemplateJSON(elements, canvasConfig, componentSettings);
+    // Build independent per-variant JSON for every variant
+    const allVariantsJSON = buildAllVariantsJSON(variantElements, variants, canvasConfig, componentSettings);
+
+    // Primary templateJSON = active variant (backwards compat for shopifyProduct.js)
+    const primaryTemplateJSON =
+      allVariantsJSON.find(v => v.id === activeVariantId)?.templateJSON ||
+      allVariantsJSON[0]?.templateJSON ||
+      buildTemplateJSON(elements, canvasConfig, componentSettings);
+
+    // Enrich the selected variants with their own templateJSON
+    const selectedVariantsWithJSON = selectedVariants.map(sv => {
+      const match = allVariantsJSON.find(v => v.id === sv.id);
+      return match ? { ...sv, templateJSON: match.templateJSON } : sv;
+    });
 
     let canvasDataUrl = null;
     try {
@@ -840,11 +931,11 @@ export default function BuilderPage() {
     }
 
     const result = await publishTemplateAsProduct({
-      templateJSON,
+      templateJSON: primaryTemplateJSON,
       canvasDataUrl,
       productTitle,
       productDescription,
-      variants: selectedVariants,
+      variants: selectedVariantsWithJSON,
       designType: 'template',
       onProgress,
     });
@@ -857,9 +948,9 @@ export default function BuilderPage() {
       productId: result.productId,
       productHandle: result.productHandle,
       status: 'published',
-      templateJSON,
+      templateJSON: primaryTemplateJSON,
       previewImageUrl: result.imageUrl,
-      variants: selectedVariants,
+      variants: selectedVariantsWithJSON,
       createdAt: new Date().toISOString().split('T')[0],
     });
 
@@ -1056,9 +1147,9 @@ export default function BuilderPage() {
             canvasConfig={canvasConfig}
             onCanvasConfigChange={setCanvasConfig}
             variants={variants}
-            setVariants={setVariants}
+            setVariants={handleVariantsChange}
             activeVariantId={activeVariantId}
-            setActiveVariantId={setActiveVariantId}
+            setActiveVariantId={handleVariantChange}
             templateName={templateName}
             setTemplateName={setTemplateName}
             templateCategory={templateCategory}

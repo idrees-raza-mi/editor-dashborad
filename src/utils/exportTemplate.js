@@ -101,9 +101,12 @@ export function buildTemplateJSON(elements, canvasConfig, componentSettings) {
       }
 
       if (el.type === 'background') {
+        obj.isCanvasBackground = true;   // flag: customer editor should skip on shaped canvas
         obj.fill   = el.fill || canvasConfig.backgroundColor;
         obj.width  = canvasConfig.width;
         obj.height = canvasConfig.height;
+        obj.left   = 0;
+        obj.top    = 0;
       }
 
       if (el.type === 'image') {
@@ -132,11 +135,12 @@ export function buildTemplateMetaobjectFields(template, previewFileId) {
   const h = template.canvasHeight;
 
   const availableSizes = (template.variants || []).map((v, i) => ({
-    id:     v.id || String(i + 1),
-    label:  v.label  || `Size ${i + 1}`,
-    price:  formatPrice(v.price),
-    width:  v.canvasWidth  || w,
-    height: v.canvasHeight || h,
+    id:           v.id || String(i + 1),
+    label:        v.label  || `Size ${i + 1}`,
+    price:        formatPrice(v.price),
+    width:        v.canvasWidth  || w,
+    height:       v.canvasHeight || h,
+    templateJSON: v.templateJSON || null,   // per-variant layout JSON
   }));
 
   const fields = {
@@ -197,6 +201,28 @@ export function buildCanvasVariantFields(canvas, variant) {
     price:            formatPrice(variant.price),
     status:           'active',
   };
+}
+
+// Build one full templateJSON per variant, each using its own elements and dimensions.
+// variantElements: { [variantId]: elements[] }
+export function buildAllVariantsJSON(variantElements, variants, canvasConfig, componentSettings) {
+  return variants.map(variant => {
+    const els = variantElements[variant.id] || [];
+    const variantCanvasConfig = {
+      ...canvasConfig,
+      width:  variant.canvasWidth  || canvasConfig.width,
+      height: variant.canvasHeight || canvasConfig.height,
+    };
+    const templateJSON = buildTemplateJSON(els, variantCanvasConfig, componentSettings);
+    return {
+      id:           variant.id,
+      label:        variant.label        || 'Size',
+      price:        variant.price        || '',
+      canvasWidth:  variant.canvasWidth  || canvasConfig.width,
+      canvasHeight: variant.canvasHeight || canvasConfig.height,
+      templateJSON,
+    };
+  });
 }
 
 export function exportCanvasAsDataURL(canvasEl) {

@@ -165,10 +165,11 @@ export default async function handler(req, res) {
       case 'createProduct': {
         // Shopify auto-creates a "Default Title" variant on every new product.
         // We must UPDATE that variant (not create a new one) to set price.
-        // For multiple variants we update the first, then create the rest.
+        // For multiple variants we: create product → productOptionsCreate → update default → bulkCreate rest.
         const hasMultiple = data.variants && data.variants.length > 1;
 
-        // Step 1: Create product — also fetch the auto-created default variant id.
+        // Step 1: Create product — WITHOUT options field (not valid on ProductInput in 2024-01).
+        // Options are created separately in step 2 via productOptionsCreate.
         const createQuery = `
           mutation productCreate($input: ProductInput!) {
             productCreate(input: $input) {
@@ -190,7 +191,6 @@ export default async function handler(req, res) {
           productType: data.productType || 'Sign',
           tags: data.tags || ['customizable'],
           status: 'ACTIVE',
-          ...(hasMultiple ? { options: ['Size'] } : {}),
         };
         const createResult = await shopifyRequest(createQuery, { input: productInput });
         if (createResult.productCreate.userErrors.length > 0) {
@@ -199,7 +199,29 @@ export default async function handler(req, res) {
         const product = createResult.productCreate.product;
         const defaultVariantId = product.variants?.edges?.[0]?.node?.id;
 
-        // Step 2: Update the auto-created default variant with correct price / sku / option.
+        // Step 2 (multi-variant only): Create the "Size" product option.
+        // Must happen before variant updates so optionValues references resolve.
+        if (hasMultiple) {
+          const optionValues = data.variants.map(v => ({ name: String(v.label) }));
+          const optionsQuery = `
+            mutation productOptionsCreate($productId: ID!, $options: [OptionCreateInput!]!, $variantStrategy: ProductOptionCreateVariantStrategy) {
+              productOptionsCreate(productId: $productId, options: $options, variantStrategy: $variantStrategy) {
+                product { options { id name optionValues { id name } } }
+                userErrors { field message }
+              }
+            }
+          `;
+          const optionsResult = await shopifyRequest(optionsQuery, {
+            productId: product.id,
+            options: [{ name: 'Size', values: optionValues }],
+            variantStrategy: 'LEAVE_AS_IS',
+          });
+          if (optionsResult.productOptionsCreate.userErrors.length > 0) {
+            throw new Error(optionsResult.productOptionsCreate.userErrors[0].message);
+          }
+        }
+
+        // Step 3: Update the auto-created default variant with price / sku / option value.
         if (data.variants && data.variants.length > 0 && defaultVariantId) {
           const updateQuery = `
             mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
@@ -217,14 +239,14 @@ export default async function handler(req, res) {
               price: String(firstV.price),
               inventoryPolicy: 'CONTINUE',
               ...(firstV.sku ? { inventoryItem: { sku: firstV.sku } } : {}),
-              ...(hasMultiple ? { optionValues: [{ name: firstV.label, optionName: 'Size' }] } : {}),
+              ...(hasMultiple ? { optionValues: [{ name: String(firstV.label), optionName: 'Size' }] } : {}),
             }],
           });
           if (updateResult.productVariantsBulkUpdate.userErrors.length > 0) {
             throw new Error(updateResult.productVariantsBulkUpdate.userErrors[0].message);
           }
 
-          // Step 3 (multi-variant only): Create remaining variants.
+          // Step 4 (multi-variant only): Create remaining variants.
           if (hasMultiple && data.variants.length > 1) {
             const bulkCreateQuery = `
               mutation productVariantsBulkCreate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
@@ -238,7 +260,7 @@ export default async function handler(req, res) {
               price: String(v.price),
               inventoryPolicy: 'CONTINUE',
               ...(v.sku ? { inventoryItem: { sku: v.sku } } : {}),
-              optionValues: [{ name: v.label, optionName: 'Size' }],
+              optionValues: [{ name: String(v.label), optionName: 'Size' }],
             }));
             const bulkResult = await shopifyRequest(bulkCreateQuery, {
               productId: product.id,

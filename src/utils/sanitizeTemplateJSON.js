@@ -9,6 +9,8 @@ async function compressImage(blob) {
       const canvas = document.createElement('canvas')
       let width = img.width
       let height = img.height
+      const originalWidth = width
+      const originalHeight = height
 
       if (width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
         if (width > height) {
@@ -27,7 +29,13 @@ async function compressImage(blob) {
 
       canvas.toBlob((compressed) => {
         if (compressed) {
-          resolve(compressed)
+          resolve({
+            blob: compressed,
+            originalWidth,
+            originalHeight,
+            newWidth: width,
+            newHeight: height
+          })
         } else {
           reject(new Error('Failed to compress image'))
         }
@@ -64,6 +72,8 @@ export async function sanitizeTemplateJSON(templateJSON, onProgress) {
   for (let i = 0; i < objectsWithBlobSrc.length; i++) {
     const obj = objectsWithBlobSrc[i]
     const blobUrl = obj.src
+    const originalScaleX = obj.scaleX || 1
+    const originalScaleY = obj.scaleY || 1
 
     if (onProgress) {
       onProgress(`Uploading image ${i + 1} of ${objectsWithBlobSrc.length}...`)
@@ -83,8 +93,17 @@ export async function sanitizeTemplateJSON(templateJSON, onProgress) {
       }
 
       // Compress image before upload to speed up Shopify processing
-      const compressedBlob = await compressImage(blob)
-      console.log('[sanitize] Original size:', blob.size, 'Compressed:', compressedBlob.size)
+      const { blob: compressedBlob, originalWidth, originalHeight, newWidth, newHeight } = await compressImage(blob)
+      console.log('[sanitize] Original size:', blob.size, 'Compressed:', compressedBlob.size, 'dims:', originalWidth, 'x', originalHeight, '->', newWidth, 'x', newHeight)
+
+      // Calculate new scale to maintain the same display size
+      // Example: original 4000px @ scale 0.15 displays at 600px
+      // Compress to 1200px - need scale 0.5 to still display at 600px
+      const displaySizeX = originalWidth * originalScaleX
+      const displaySizeY = originalHeight * originalScaleY
+      const newScaleX = originalWidth > 0 ? displaySizeX / newWidth : 1
+      const newScaleY = originalHeight > 0 ? displaySizeY / newHeight : 1
+      console.log('[sanitize] Display size:', displaySizeX, '-> newScale:', newScaleX)
 
       const filename = `template-image-${Date.now()}-${i}.jpg`
 
@@ -92,9 +111,9 @@ export async function sanitizeTemplateJSON(templateJSON, onProgress) {
       const result = await uploadImageToShopify(compressedBlob, filename)
       const cdnUrl = result.cdnUrl
 
-      urlMap[blobUrl] = cdnUrl
+      urlMap[blobUrl] = { cdnUrl, newScaleX, newScaleY }
 
-      console.info(`[sanitize] Replaced blob with CDN URL: ${cdnUrl}`)
+      console.info(`[sanitize] Replaced blob with CDN URL: ${cdnUrl}, scale: ${newScaleX}`)
 
     } catch (err) {
       console.error(`[sanitize] Failed to upload image ${i + 1}:`, err)
@@ -110,9 +129,14 @@ export async function sanitizeTemplateJSON(templateJSON, onProgress) {
       typeof obj.src === 'string' &&
       obj.src.startsWith('blob:')
     ) {
-      const cdnUrl = urlMap[obj.src]
-      if (cdnUrl) {
-        return { ...obj, src: cdnUrl }
+      const replacement = urlMap[obj.src]
+      if (replacement && replacement.cdnUrl) {
+        return { 
+          ...obj, 
+          src: replacement.cdnUrl,
+          scaleX: replacement.newScaleX,
+          scaleY: replacement.newScaleY
+        }
       }
       // Upload failed — set empty src so editor shows placeholder
       const { src, ...rest } = obj
@@ -127,8 +151,8 @@ export async function sanitizeTemplateJSON(templateJSON, onProgress) {
     typeof cleanBackground === 'string' &&
     cleanBackground.startsWith('blob:')
   ) {
-    const cdnUrl = urlMap[cleanBackground]
-    cleanBackground = cdnUrl || ''
+    const replacement = urlMap[cleanBackground]
+    cleanBackground = replacement?.cdnUrl || ''
   }
 
   return {

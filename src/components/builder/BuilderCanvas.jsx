@@ -28,6 +28,21 @@ export default function BuilderCanvas({
   const isSyncingRef = useRef(false);
   const [canvasReady, setCanvasReady] = useState(false);
 
+  // Always-current handlers ref — prevents stale closures in the mount-only init effect.
+  // The init useEffect runs once ([] deps) and captures callbacks at mount time.
+  // By routing all handler calls through this ref, event listeners always call the
+  // latest version of each callback (important when activeVariantId changes and
+  // setElements is recreated via useCallback).
+  const handlersRef = useRef({});
+  handlersRef.current = {
+    onSelectElement,
+    onElementMoved,
+    onElementResized,
+    onElementTextChanged,
+    onDeleteElement,
+    onClearAll,
+  };
+
   // Active variant dimensions override canvasConfig
   const activeVariant = variants.find(v => v.id === activeVariantId);
   const effectiveWidth  = activeVariant?.canvasWidth  || canvasConfig.width;
@@ -52,26 +67,26 @@ export default function BuilderCanvas({
 
     fc.on('selection:created', (e) => {
       const obj = e.selected?.[0];
-      if (obj && obj.id) onSelectElement(obj.id);
+      if (obj && obj.id) handlersRef.current.onSelectElement(obj.id);
     });
     fc.on('selection:updated', (e) => {
       const obj = e.selected?.[0];
-      if (obj && obj.id) onSelectElement(obj.id);
+      if (obj && obj.id) handlersRef.current.onSelectElement(obj.id);
     });
-    fc.on('selection:cleared', () => onSelectElement(null));
+    fc.on('selection:cleared', () => handlersRef.current.onSelectElement(null));
 
     fc.on('object:modified', (e) => {
       const obj = e.target;
       if (!obj || !obj.id) return;
-      onElementMoved(obj.id, Math.round(obj.left), Math.round(obj.top));
-      onElementResized(obj.id, obj.scaleX, obj.scaleY,
+      handlersRef.current.onElementMoved(obj.id, Math.round(obj.left), Math.round(obj.top));
+      handlersRef.current.onElementResized(obj.id, obj.scaleX, obj.scaleY,
         Math.round(obj.getScaledWidth()), Math.round(obj.getScaledHeight()));
     });
 
     fc.on('text:changed', (e) => {
       const obj = e.target;
       if (!obj || !obj.id) return;
-      onElementTextChanged(obj.id, obj.text);
+      handlersRef.current.onElementTextChanged(obj.id, obj.text);
     });
 
     fc.on('text:editing:entered', () => {
@@ -109,8 +124,8 @@ export default function BuilderCanvas({
           fc.remove(active);
           fc.discardActiveObject();
           fc.renderAll();
-          onDeleteElement(active.id);  // notify React state
-          onSelectElement(null);
+          handlersRef.current.onDeleteElement(active.id);  // notify React state
+          handlersRef.current.onSelectElement(null);
         }
       }
     };

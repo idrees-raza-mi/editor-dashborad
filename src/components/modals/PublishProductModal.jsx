@@ -29,7 +29,15 @@ export default function PublishProductModal({
   const isLargeJson = jsonSizeKB !== null && jsonSizeKB > 100;
 
   const selectedVariants = variants.filter(v => selectedVariantIds.includes(v.id));
-  const canSubmit = productTitle.trim().length > 0 && selectedVariants.length > 0;
+
+  // Variants missing a label or price
+  const incompleteVariants = variants.filter(
+    v => !v.label || !String(v.label).trim() || !v.price || !String(v.price).trim()
+  );
+  const canSubmit =
+    productTitle.trim().length > 0 &&
+    selectedVariants.length > 0 &&
+    incompleteVariants.length === 0;
 
   function toggleVariant(id) {
     setSelectedVariantIds(prev =>
@@ -223,24 +231,37 @@ export default function PublishProductModal({
             <div className="publish-field">
               <label className="publish-field-label">Size Variants</label>
               <div className="publish-variant-list">
-                {variants.map(v => (
-                  <label key={v.id} className="publish-variant-row">
-                    <input
-                      type="checkbox"
-                      checked={selectedVariantIds.includes(v.id)}
-                      onChange={() => toggleVariant(v.id)}
-                    />
-                    <span style={{ flex: 1 }}>{v.label || 'Variant'}</span>
-                    {v.price && (
-                      <span style={{ color: 'var(--mid)', fontSize: 13 }}>
-                        £{v.price}
+                {variants.map(v => {
+                  const missing = !v.label || !String(v.label).trim() || !v.price || !String(v.price).trim();
+                  return (
+                    <label key={v.id} className="publish-variant-row">
+                      <input
+                        type="checkbox"
+                        checked={selectedVariantIds.includes(v.id)}
+                        onChange={() => toggleVariant(v.id)}
+                      />
+                      <span style={{ flex: 1, color: missing ? 'var(--red-tx)' : undefined }}>
+                        {v.label || <em>No label</em>}
+                        {missing && ' ⚠'}
                       </span>
-                    )}
-                  </label>
-                ))}
+                      {v.price
+                        ? <span style={{ color: 'var(--mid)', fontSize: 13 }}>£{v.price}</span>
+                        : <span style={{ color: 'var(--red-tx)', fontSize: 12 }}>No price</span>
+                      }
+                    </label>
+                  );
+                })}
                 {selectedVariants.length === 0 && (
                   <p style={{ fontSize: 12, color: 'var(--red-tx)', marginTop: 4 }}>
                     Select at least one variant
+                  </p>
+                )}
+                {incompleteVariants.length > 0 && (
+                  <p style={{ fontSize: 12, color: 'var(--red-tx)', marginTop: 6 }}>
+                    All variants need a label and price before publishing.
+                    {' '}Missing: {incompleteVariants.map((v, i) =>
+                      `Variant ${variants.indexOf(v) + 1}${i < incompleteVariants.length - 1 ? ', ' : ''}`
+                    )}
                   </p>
                 )}
               </div>
