@@ -641,3 +641,13 @@
 .spin {
   animation: spin 0.8s linear infinite;
 }
+
+.blob-warning-notice {
+  background: var(--amber-bg, #fffbeb);
+  color: var(--amber-tx, #92400e);
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--amber-tx, #92400e);
+  margin-top: 8px;
+}

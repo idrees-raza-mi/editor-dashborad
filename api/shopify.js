@@ -329,6 +329,7 @@ export default async function handler(req, res) {
             node(id: $id) {
               ... on MediaImage {
                 id
+                status
                 image { url }
               }
             }
@@ -362,6 +363,32 @@ export default async function handler(req, res) {
         `;
         const result = await shopifyRequest(query, { first: data.first || 50 });
         return res.json(result.products);
+      }
+
+      case 'getProductMetafields': {
+        const query = `
+          query getProductMetafields($handle: String!) {
+            productByHandle(handle: $handle) {
+              id
+              title
+              handle
+              templateJson: metafield(namespace: "custom", key: "template_json") { value }
+              designType: metafield(namespace: "custom", key: "design_type") { value }
+              editorVersion: metafield(namespace: "custom", key: "editor_version") { value }
+              variants(first: 20) {
+                edges {
+                  node {
+                    id
+                    title
+                    price
+                  }
+                }
+              }
+            }
+          }
+        `;
+        const result = await shopifyRequest(query, { handle: data.handle });
+        return res.json(result.productByHandle);
       }
 
       default:

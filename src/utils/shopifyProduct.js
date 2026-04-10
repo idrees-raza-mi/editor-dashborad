@@ -1,4 +1,5 @@
 import { callAdminProxy, uploadImageToShopify } from './shopifyAdmin';
+import { sanitizeTemplateJSON, hasUnsavedBlobUrls } from './sanitizeTemplateJSON';
 
 export async function publishTemplateAsProduct(params) {
   const {
@@ -53,16 +54,30 @@ export async function publishTemplateAsProduct(params) {
     console.warn('Image upload failed, continuing:', imgErr);
   }
 
-  // Step 3 — Store template JSON on product metafield
+  // Step 3 — Sanitize blob URLs, then store template JSON on product metafield
+  let cleanTemplateJSON = templateJSON;
+  if (hasUnsavedBlobUrls(templateJSON)) {
+    onProgress('Uploading embedded images to Shopify...', 2.5, 4);
+    try {
+      cleanTemplateJSON = await sanitizeTemplateJSON(
+        templateJSON,
+        (msg) => onProgress(msg, 2.5, 4)
+      );
+    } catch (sanitizeErr) {
+      console.error('Image sanitization error:', sanitizeErr);
+      // Continue with original JSON — do not block publish
+    }
+  }
+
   onProgress('Saving template data...', 3, 4);
 
-  const templateJsonString = JSON.stringify(templateJSON);
+  const templateJsonString = JSON.stringify(cleanTemplateJSON);
   if (templateJsonString.length > 120000) {
     throw new Error(
       'Template JSON is too large (' +
       Math.round(templateJsonString.length / 1024) +
       'KB). Shopify metafield limit is 128KB. ' +
-      'Simplify the template and try again.'
+      'Reduce the number of elements or image complexity.'
     );
   }
 
@@ -101,7 +116,16 @@ export async function publishTemplateAsProduct(params) {
 }
 
 export async function updateProductTemplate(params) {
-  const { productId, templateJSON, designType } = params;
+  const { productId, designType } = params;
+  let { templateJSON } = params;
+
+  if (hasUnsavedBlobUrls(templateJSON)) {
+    try {
+      templateJSON = await sanitizeTemplateJSON(templateJSON);
+    } catch (err) {
+      console.error('Image sanitization error on update:', err);
+    }
+  }
 
   const templateJsonString = JSON.stringify(templateJSON);
   if (templateJsonString.length > 120000) {

@@ -12,6 +12,7 @@ import PublishProductModal from '../components/modals/PublishProductModal';
 import { buildTemplateJSON, buildTemplateMetaobjectFields, buildCanvasMetaobjectFields, buildCanvasVariantFields } from '../utils/exportTemplate';
 import { callAdminProxy, uploadImageToShopify } from '../utils/shopifyAdmin';
 import { publishTemplateAsProduct } from '../utils/shopifyProduct';
+import { hasUnsavedBlobUrls } from '../utils/sanitizeTemplateJSON';
 import { readSVGFile, validateSVGFile, parseSVGToElements } from '../utils/svgImporter';
 
 const MODE_TABS = [
@@ -499,6 +500,21 @@ export default function BuilderPage() {
   const [publishResult, setPublishResult]       = useState(null);
   const [existingProductId, setExistingProductId] = useState(null); // eslint-disable-line no-unused-vars
 
+  // Blob URL warning — images not yet uploaded to Shopify CDN
+  const [hasBlobImages, setHasBlobImages] = useState(false);
+  useEffect(() => {
+    const json = buildTemplateJSON(elements, canvasConfig, componentSettings);
+    setHasBlobImages(hasUnsavedBlobUrls(json));
+  }, [elements]);
+
+  function handlePublishClick() {
+    const currentJSON = buildTemplateJSON(elements, canvasConfig, componentSettings);
+    if (hasUnsavedBlobUrls(currentJSON)) {
+      console.info('[Builder] Template contains blob URLs — they will be uploaded to Shopify during publish');
+    }
+    setShowPublishModal(true);
+  }
+
   function updateStep(stepId, status) {
     setExportSteps(prev => prev.map(s => s.id === stepId ? { ...s, status } : s));
   }
@@ -982,8 +998,13 @@ export default function BuilderPage() {
                   </span>
                 )}
               </div>
+              {hasBlobImages && (
+                <div className="blob-warning-notice">
+                  ⚠ Some images are not yet uploaded to Shopify. They will be uploaded automatically when you publish.
+                </div>
+              )}
               <Button variant="outline" icon={Save} onClick={handleSaveDraft} disabled={!setupDone}>Save Draft</Button>
-              <Button variant="primary" icon={Store} onClick={() => setShowPublishModal(true)} disabled={!setupDone}>
+              <Button variant="primary" icon={Store} onClick={handlePublishClick} disabled={!setupDone}>
                 Publish to Shopify
               </Button>
             </>

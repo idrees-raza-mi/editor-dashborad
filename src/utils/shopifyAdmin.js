@@ -50,23 +50,25 @@ export async function uploadImageToShopify(blob, filename) {
   });
   console.log('[UPLOAD] File record:', fileRecord);
 
-  // Poll for URL if not immediately available
+  // Poll for URL — Shopify processes images asynchronously, small compressed files should be fast
   let cdnUrl = fileRecord?.image?.url;
   let fileId = fileRecord?.id;
-  
+
   if (!cdnUrl && fileId) {
-    console.log('[UPLOAD] URL not ready, polling...');
-    for (let i = 0; i < 5; i++) {
-      await new Promise(r => setTimeout(r, 2000));
-      // Query the file to get the URL
+    console.log('[UPLOAD] URL not ready, polling (up to 20 attempts × 3s = 60s)...');
+    for (let i = 0; i < 20; i++) {
+      await new Promise(r => setTimeout(r, 3000));
       const refreshed = await callAdminProxy('getFile', { id: fileId });
-      console.log('[UPLOAD] Refreshed:', refreshed);
+      console.log(`[UPLOAD] Poll ${i + 1}/20 status=${refreshed?.status} url=${refreshed?.image?.url}`);
       cdnUrl = refreshed?.image?.url;
       if (cdnUrl) break;
+      if (refreshed?.status === 'FAILED') {
+        throw new Error('Shopify reported file processing failed');
+      }
     }
   }
 
   console.log('[UPLOAD] CDN URL:', cdnUrl);
-  if (!cdnUrl) throw new Error('No CDN URL returned');
+  if (!cdnUrl) throw new Error('No CDN URL returned after 60s — try again.');
   return { cdnUrl, fileId };
 }
