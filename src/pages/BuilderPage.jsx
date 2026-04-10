@@ -32,6 +32,64 @@ const inputStyle = {
 };
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// Wait for all fabric Image objects to finish loading
+const waitForCanvasImages = (fabricCanvas) => {
+  return new Promise((resolve) => {
+    if (!fabricCanvas) { resolve(); return; }
+    const objects = fabricCanvas.getObjects();
+    const imageObjects = objects.filter(obj => obj.type === 'image');
+    if (imageObjects.length === 0) { resolve(); return; }
+    
+    let loadedCount = 0;
+    const total = imageObjects.length;
+    
+    imageObjects.forEach(img => {
+      const el = img.getElement ? img.getElement() : null;
+      if (el && el.complete && el.naturalWidth > 0) {
+        loadedCount++;
+        if (loadedCount === total) resolve();
+      } else if (el) {
+        el.onload = () => { loadedCount++; if (loadedCount === total) resolve(); };
+        el.onerror = () => { loadedCount++; if (loadedCount === total) resolve(); };
+      } else {
+        loadedCount++;
+        if (loadedCount === total) resolve();
+      }
+    });
+    
+    setTimeout(resolve, 5000);
+  });
+};
+
+// Capture high-resolution preview image
+const captureHighResPreview = async (fabricCanvas) => {
+  if (!fabricCanvas) return null;
+  
+  await waitForCanvasImages(fabricCanvas);
+  await new Promise(r => requestAnimationFrame(r));
+  fabricCanvas.renderAll();
+  await new Promise(r => setTimeout(r, 300));
+  
+  const savedBg = fabricCanvas.backgroundColor;
+  if (!savedBg || savedBg === 'transparent' || savedBg === '') {
+    fabricCanvas.setBackgroundColor('#ffffff', () => {});
+    fabricCanvas.renderAll();
+  }
+  
+  const dataUrl = fabricCanvas.toDataURL({
+    format: 'jpeg',
+    quality: 0.92,
+    multiplier: 2
+  });
+  
+  if (savedBg) {
+    fabricCanvas.setBackgroundColor(savedBg, () => {});
+    fabricCanvas.renderAll();
+  }
+  
+  return dataUrl;
+};
 const isDev = window.location.hostname === 'localhost';
 
 // Unit conversion — 96 DPI standard (1 inch = 96 px, 1 cm = 96/2.54 px)
@@ -645,11 +703,11 @@ export default function BuilderPage() {
       try {
         const fc = canvasInstanceRef?.current;
         if (fc) {
-          const dataUrl  = fc.toDataURL({ format: 'png', quality: 0.85 });
+          const dataUrl = await captureHighResPreview(fc);
           const response = await fetch(dataUrl);
           const blob     = await response.blob();
           const filename = (templateName || 'template').replace(/\s+/g, '-').toLowerCase()
-            + '-preview-' + Date.now() + '.png';
+            + '-preview-' + Date.now() + '.jpg';
           if (!isDev) {
             const uploaded = await uploadImageToShopify(blob, filename);
             previewImageUrl = uploaded.cdnUrl  || '';

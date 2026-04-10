@@ -373,6 +373,19 @@ export default function TemplateBuilderMode({
             onSelectElement={setSelectedElementId}
             onAddElement={handleAddElement}
             onDeleteElement={handleDeleteElement}
+            onElementsChange={(newEls) => {
+              setElements(newEls);
+              // Sync layer order to canvas
+              if (canvasRef.current) {
+                const fc = canvasRef.current;
+                fc.remove(...fc.getObjects());
+                newEls.forEach(el => {
+                  const obj = fc.getObjects().find(o => o.id === el.id);
+                  if (obj) fc.add(obj);
+                });
+                fc.renderAll();
+              }
+            }}
             componentSettings={componentSettings}
           />
         </div>
